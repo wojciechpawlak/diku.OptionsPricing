@@ -55,12 +55,16 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
     Qs[c.jmax] = one;                  // Qs[0] = 1$
 
     auto alphas = new real[c.n + 1]();                                                                  // alphas[i]
-    alphas[0] = getYieldAtYear(c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.N); // initial dt-period interest rate
+    int lastIdx = 0;
+    alphas[0] = getYieldAtYear(c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.N, &lastIdx); // initial dt-period interest rate
+    printf("0 %d alpha %f \n", 0, alphas[0]);
+
 
     for (auto i = 0; i < c.n; ++i)
     {
-        auto jhigh = std::min(i, c.jmax);
+        auto jhigh = MIN(i, c.jmax);
         auto alpha = alphas[i];
+        printf("1 %d alpha %f \n", i, alpha);
 
         // Forward iteration step, compute Qs in the next time step
         for (auto j = -jhigh; j <= jhigh; ++j)
@@ -94,7 +98,7 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
 
         // Determine the new alpha using equation 30.22
         // by summing up Qs from the next time step
-        auto jhigh1 = std::min(i + 1, c.jmax);
+        auto jhigh1 = MIN(i + 1, c.jmax);
         real alpha_val = 0;
         for (auto j = -jhigh1; j <= jhigh1; ++j)
         {
@@ -103,8 +107,8 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
             alpha_val += QsCopy[jind] * exp(-jval.rate * c.dt);
         }
 
-        alphas[i + 1] = computeAlpha(alpha_val, i, c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.N);
-
+        alphas[i + 1] = computeAlpha(alpha_val, i, c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.N, &lastIdx);
+        printf("2 %d alpha %f \n", i+1, alphas[i + 1]);
         // Switch Qs
         auto QsT = Qs;
         Qs = QsCopy;
@@ -120,8 +124,9 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
 
     for (auto i = c.n - 1; i >= 0; --i)
     {
-        auto jhigh = std::min(i, c.jmax);
+        auto jhigh = MIN(i, c.jmax);
         auto alpha = alphas[i];
+        printf("3 %d alpha %f \n", i, alpha);
         auto isMaturity = i == ((int)(c.t / c.dt));
 
         for (auto j = -jhigh; j <= jhigh; ++j)
@@ -169,7 +174,7 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
     }
 
     auto result = call[c.jmax];
-
+    printf("res: %f\n", result);
     delete[] jvalues;
     delete[] alphas;
     delete[] Qs;

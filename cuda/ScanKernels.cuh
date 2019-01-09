@@ -1,8 +1,6 @@
 #ifndef SCAN_KERNELS_CUH
 #define SCAN_KERNELS_CUH
 
-#include <cuda_runtime.h>
-
 namespace cuda
 {
 
@@ -54,7 +52,7 @@ __device__ inline T scanIncBlock(volatile T *ptr, const unsigned int idx = threa
     //   max block size = 32^2 = 1024
     if (lane == 31)
     {
-        ptr[warpid] = const_cast<T &>(ptr[idx]);
+        ptr[warpid] = const_cast<T &>(val);
     }
     __syncthreads();
 

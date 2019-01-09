@@ -75,13 +75,23 @@ __global__ void kernelOneOptionPerThread(const KernelOptions options, KernelArgs
 
     args.init(options);
     args.setQAt(c.jmax, one);
-    args.setAlphaAt(0, getYieldAtYear(c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize));
+    int lastIdx = 0;
+    args.setAlphaAt(0, getYieldAtYear(c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize, &lastIdx));
+    //auto alpha = getYieldAtYear(c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize, &lastIdx);
+    //args.setAlphaAt(0, alpha);
+    //if (args.getIdx() == 2)
+    //    printf("0 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
+    //        0, alpha, args.getAlphaAt(0), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
 
     // Forward propagation
     for (auto i = 1; i <= c.n; ++i)
     {
         const auto jhigh = min(i, c.jmax);
         const auto alpha = args.getAlphaAt(i-1);
+        //if (args.getIdx() == 2)
+        //    printf("1 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
+        //        i - 1, alpha, args.getAlphaAt(i - 1), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
+
         real alpha_val = 0;
 
         // Precompute Qexp
@@ -158,7 +168,12 @@ __global__ void kernelOneOptionPerThread(const KernelOptions options, KernelArgs
             alpha_val += Q * exp(-j * c.dr * c.dt);
         }
 
-        args.setAlphaAt(i, computeAlpha(alpha_val, i-1, c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize));
+        args.setAlphaAt(i, computeAlpha(alpha_val, i - 1, c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize, &lastIdx));
+        //auto alpha2 = computeAlpha(alpha_val, i - 1, c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize, &lastIdx);
+        //args.setAlphaAt(i, alpha2);
+        //if (args.getIdx() == 2)
+        //    printf("2 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
+        //        i, alpha2, args.getAlphaAt(i), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
 
         // Switch Qs
         args.switchQs();
@@ -171,6 +186,9 @@ __global__ void kernelOneOptionPerThread(const KernelOptions options, KernelArgs
     {
         const auto jhigh = min(i, c.jmax);
         const auto alpha = args.getAlphaAt(i);
+        //if (args.getIdx() == 2)
+        //    printf("3 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
+        //        i, alpha, args.getAlphaAt(i), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
         const auto isMaturity = i == ((int)(c.t / c.dt));
 
         for (auto j = -jhigh; j <= jhigh; ++j)
@@ -213,6 +231,7 @@ __global__ void kernelOneOptionPerThread(const KernelOptions options, KernelArgs
     }
 
     args.setResult(c.jmax);
+    //if (args.getOptionIdx() == 2) printf("res: %f\n", args.getQAt(c.jmax));
 }
 
 class KernelRunBase

@@ -16,6 +16,7 @@ struct KernelArgsValuesCoalesced
     real *alphas;
     int32_t *inds;
     int32_t maxHeight;
+    int32_t maxOptionsBlock;
 };
 
 class KernelArgsCoalesced : public KernelArgsBase<KernelArgsValuesCoalesced>
@@ -25,6 +26,7 @@ private:
 
     int optionIdx;
     int optionCount;
+    int optionCountBlock;
 
 public:
 
@@ -34,14 +36,15 @@ public:
     {
         this->optionIdx = idxBlock + optionIdxBlock;
         this->optionCount = optionCount;
+        this->optionCountBlock = idxBlockNext - idxBlock;
     }
 
-    __device__ inline void setAlphaAt(const int index, const real value) override
+    __device__ inline void setAlphaAt(const int index, const real value, const int optionIndex = 0) override
     {
         values.alphas[optionCount * index + optionIdx] = value;
     }
 
-    __device__ inline real getAlphaAt(const int index) const override
+    __device__ inline real getAlphaAt(const int index, const int optionIndex = 0) const override
     {
         return values.alphas[optionCount * index + optionIdx];
     }
@@ -68,6 +71,8 @@ protected:
         thrust::host_vector<int32_t> hInds;
 
         auto counter = 0;
+        auto prevInd = 0;
+        auto maxOptionsBlock = 0;
         for (auto i = 0; i < options.N; ++i)
         {
             auto w = hostWidths[i];
@@ -76,9 +81,20 @@ protected:
             {
                 hInds.push_back(i);
                 counter = w;
+
+                auto optionsBlock = i - prevInd;
+                if (optionsBlock > maxOptionsBlock) {
+                    maxOptionsBlock = optionsBlock;
+                }
+                prevInd = i;
             }
         }
         hInds.push_back(options.N);
+
+        auto optionsBlock = options.N - prevInd;
+        if (optionsBlock > maxOptionsBlock) {
+            maxOptionsBlock = optionsBlock;
+        }
 
         thrust::device_vector<int32_t> dInds = hInds;
 
@@ -88,7 +104,7 @@ protected:
         values.maxHeight = thrust::max_element(options.Heights.begin(), options.Heights.end())[0];
         const int totalAlphasCount = options.N * values.maxHeight;
 
-        runKernel<KernelArgsCoalesced>(options, results, dInds, values, totalAlphasCount);
+        runKernel<KernelArgsCoalesced>(options, results, dInds, values, totalAlphasCount, maxOptionsBlock);
     }
 };
 

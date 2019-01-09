@@ -16,6 +16,7 @@ struct KernelArgsValuesCoalescedBlock
     real *alphas;
     int32_t *inds;
     int32_t *alphaInds;
+    int32_t maxOptionsBlock;
 };
 
 class KernelArgsCoalescedBlock : public KernelArgsBase<KernelArgsValuesCoalescedBlock>
@@ -24,9 +25,10 @@ class KernelArgsCoalescedBlock : public KernelArgsBase<KernelArgsValuesCoalesced
 private:
 
     int optionIdx;
-    int alphaIdx;
-    int maxHeight;
     int optionCountBlock;
+    int alphaIdx;
+    int alphaIdxBlock;
+    int maxHeight;
 
 public:
 
@@ -36,19 +38,19 @@ public:
     {
         optionIdx = idxBlock + optionIdxBlock;
         optionCountBlock = idxBlockNext - idxBlock;
-        auto alphaIdxBlock = (blockIdx.x == 0 ? 0 : values.alphaInds[blockIdx.x - 1]);
+        alphaIdxBlock = (blockIdx.x == 0 ? 0 : values.alphaInds[blockIdx.x - 1]);
         maxHeight = (values.alphaInds[blockIdx.x] - alphaIdxBlock) / optionCountBlock;
         alphaIdx = alphaIdxBlock + optionIdxBlock;
     }
 
-    __device__ inline void setAlphaAt(const int index, const real value) override
+    __device__ inline void setAlphaAt(const int index, const real value, const int optionIndex = 0) override
     {
-        values.alphas[alphaIdx + optionCountBlock * index] = value;
+        values.alphas[optionCountBlock * index + alphaIdxBlock + optionIndex] = value;
     }
 
-    __device__ inline real getAlphaAt(const int index) const override
+    __device__ inline real getAlphaAt(const int index, const int optionIndex = 0) const override
     {
-        return values.alphas[alphaIdx + optionCountBlock * index];
+        return values.alphas[optionCountBlock * index + alphaIdxBlock + optionIndex];
     }
 
     __device__ inline int getMaxHeight() const override
@@ -76,6 +78,8 @@ protected:
 
         auto counter = 0;
         auto maxHeightBlock = 0;
+        auto prevInd = 0;
+        auto maxOptionsBlock = 0;
         for (auto i = 0; i < options.N; ++i)
         {
             auto w = hostWidths[i];
@@ -89,6 +93,12 @@ protected:
                 hInds.push_back(i);
                 counter = w;
                 maxHeightBlock = 0;
+
+                auto optionsBlock = i - prevInd;
+                if (optionsBlock > maxOptionsBlock) {
+                    maxOptionsBlock = optionsBlock;
+                }
+                prevInd = i;
             }
             if (h > maxHeightBlock) {
                 maxHeightBlock = h;
@@ -97,6 +107,11 @@ protected:
         auto alphasBlock = maxHeightBlock * (options.N - (hInds.empty() ? 0 : hInds.back()));
         hAlphaInds.push_back((hAlphaInds.empty() ? 0 : hAlphaInds.back()) + alphasBlock);
         hInds.push_back(options.N);
+
+        auto optionsBlock = options.N - prevInd;
+        if (optionsBlock > maxOptionsBlock) {
+            maxOptionsBlock = optionsBlock;
+        }
 
         thrust::device_vector<int32_t> dInds = hInds;
         thrust::device_vector<int32_t> dAlphaInds = hAlphaInds;
@@ -107,7 +122,7 @@ protected:
 
         options.DeviceMemory += vectorsizeof(dAlphaInds);
 
-        runKernel<KernelArgsCoalescedBlock>(options, results, dInds, values, totalAlphasCount);
+        runKernel<KernelArgsCoalescedBlock>(options, results, dInds, values, totalAlphasCount, maxOptionsBlock);
     }
 };
 

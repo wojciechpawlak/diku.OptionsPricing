@@ -19,11 +19,22 @@ GetOpt_pp: Yet another C++ version of getopt.
 #ifndef GETOPT_PP_H
 #define GETOPT_PP_H
 
-#include <string>
+//#include <string>
 #include <vector>   // candidate to be removed
 #include <map>
 #include <sstream>
+#include <fstream>
 #include <list>
+
+#if __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#elif _WIN32
+#include <cstdio>
+#define environ _environ
+#else
+#include <unistd.h>
+#endif
 
 /*
     DESIGN GOALS:

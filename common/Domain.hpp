@@ -8,33 +8,34 @@
 namespace trinom
 {
 
-DEVICE real getYieldAtYear(const real t, const int termUnit, const real *prices, const int32_t *timeSteps, const int size)
+DEVICE real getYieldAtYear(const real t, const int termUnit, const real *prices, const int32_t *timeSteps, const int size, int *lastIdx)
 {
     const int tDays = (int)ROUND(t * termUnit);
     auto first = 0;
     auto second = 0;
 
-    for (auto i = 0; i < size; ++i)
-    {
-        const auto t = timeSteps[i];
-        if (t >= tDays)
-        {
-            second = i;
-            break;
-        }
-        first = i;
-    }
-
-    // tDays <= timeSteps[0]
-    if (first == second)
+    // extrapolate
+    if (tDays <= timeSteps[0])
     {
         return prices[0];
     }
 
-    // tDays > timeSteps[size-1]
-    if (first == size - 1)
+    // extrapolate
+    if (tDays > timeSteps[size - 1])
     {
         return prices[size - 1];
+    }
+
+    // interpolate
+    for (auto i = *lastIdx; i < size; ++i)
+    {
+        if (timeSteps[i] >= tDays)
+        {
+            second = i;
+            *lastIdx = i;
+            first = i - 1;
+            break;
+        }
     }
 
     auto t1 = timeSteps[first];
@@ -95,10 +96,10 @@ DEVICE inline real PD_C(int j, real M)
     return one / six + (j * j * M * M + j * M) * half;
 }
 
-DEVICE inline real computeAlpha(const real aggregatedQs, const int i, const real dt, const int termUnit, const real *prices, const int32_t *timeSteps, const int size)
+DEVICE inline real computeAlpha(const real aggregatedQs, const int i, const real dt, const int termUnit, const real *prices, const int32_t *timeSteps, const int size, int *lastIdx)
 {
     auto ti = (i + 2) * dt;
-    auto R = getYieldAtYear(ti, termUnit, prices, timeSteps, size); // discount rate
+    auto R = getYieldAtYear(ti, termUnit, prices, timeSteps, size, lastIdx); // discount rate
     auto P = exp(-R * ti);                                          // discount bond price
     return log(aggregatedQs / P) / dt;                              // new alpha
 }

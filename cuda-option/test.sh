@@ -7,14 +7,18 @@
 # program options
 rep=5
 device=0
-sorts="- w W h H"
-block_sizes="32 64 128 256 512 1024"
-versions="1 2 3 4"
+# sorts="- w W h H"
+sorts="w h"
+# block_sizes="32 64 128 256 512 1024"
+block_sizes="128"
+# versions="1 2 3 4"
+versions="3 4"
 
 # data
 data_path="../data"
 # files=("book" "options-1000" "options-60000")
-files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
+# files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
+files=("0_UNIFORM" "1_RAND" "4_SKEWED")
 yield="yield"
 
 # executables
@@ -25,21 +29,22 @@ exedouble=$exe"-double"
 exedoublereg=$exedouble"-reg32"
 exes=($exefloat $exefloatreg $exedouble $exedoublereg)
 exes_names=("float,-" "float,32" "double,-" "double,32")
-exes_to_run=(0 1 2 3)
+# exes_to_run=(0 1 2 3)
+exes_to_run=(2)
 
 compile() {
     echo "Compiling float version..."
     make -B compile REAL=32
     mv $exe $exefloat
-    echo "Compiling float version with 32 registers..."
-    make -B compile REAL=32 REG=32
-    mv $exe $exefloatreg
+    # echo "Compiling float version with 32 registers..."
+    # make -B compile REAL=32 REG=32
+    # mv $exe $exefloatreg
     echo "Compiling double version..."
     make -B compile REAL=64
     mv $exe $exedouble
-    echo "Compiling double version with 32 registers..."
-    make -B compile REAL=64 REG=32
-    mv $exe $exedoublereg
+    # echo "Compiling double version with 32 registers..."
+    # make -B compile REAL=64 REG=32
+    # mv $exe $exedoublereg
 }
 
 test() {

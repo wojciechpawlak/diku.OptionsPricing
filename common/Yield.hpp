@@ -2,7 +2,6 @@
 #define YIELD_HPP
 
 #include <fstream>
-#include <stdexcept>
 #include <vector>
 
 #include "Arrays.hpp"

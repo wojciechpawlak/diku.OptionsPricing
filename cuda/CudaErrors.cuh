@@ -4,8 +4,6 @@
 // CUDA error checking
 // https://codeyarns.com/2011/03/02/how-to-do-error-checking-in-cuda/
 
-#include <cuda_runtime.h>
-
 #define CudaSafeCall(err) __cudaSafeCall(err, __FILE__, __LINE__)
 #define CudaCheckError() __cudaCheckError(__FILE__, __LINE__)
 

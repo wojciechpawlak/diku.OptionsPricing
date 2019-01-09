@@ -7,14 +7,20 @@
 # program options
 rep=5
 device=0
-sorts="- w W h H"
-block_sizes="512"
-versions="1 2 3"
+# sorts="- w W h H"
+sorts="w W h H"
+# block_sizes="32 64 128 256 512 1024"
+# block_sizes="512"
+block_sizes="512 1024"
+# versions="1 2 3"
+versions="3"
 
 # data
 data_path="../data"
+results_path="../results"
 # files=("book" "options-1000" "options-60000")
-files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
+# files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
+files=("0_UNIFORM" "1_RAND" "4_SKEWED")
 yield="yield"
 
 # executables
@@ -25,7 +31,8 @@ exedouble=$exe"-double"
 exedoublereg=$exedouble"-reg32"
 exes=($exefloat $exefloatreg $exedouble $exedoublereg)
 exes_names=("float,-" "float,32" "double,-" "double,32")
-exes_to_run=(0 1 2 3)
+# exes_to_run=(0 1 2 3)
+exes_to_run=(2 3)
 
 compile() {
     echo "Compiling float version..."
@@ -53,8 +60,25 @@ test() {
     done
 }
 
+validate() {
+    for file in ${files[*]}
+    do
+        for index in ${exes_to_run[*]}
+        do 
+            ./${exes[$index]} -o $data_path/$file.in -y $data_path/$yield.in -s $sorts -v $versions -b $block_sizes -d $device > $results_path/test.out  | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
+            if [ index = 0 || index = 1 ]; then
+                cat $data_path/out32/$file.out $results_path/test.out | ../build/Compare
+            else
+                cat $data_path/out/$file.out $results_path/test.out | ../build/Compare
+            fi
+        done
+    done
+}
+
 if [ "$1" = "compile" ]; then
     compile
+elif [ "$1" = "validate" ]; then
+    validate
 else
     test
 fi

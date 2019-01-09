@@ -1,9 +1,15 @@
-CXX        	  = nvcc -std=c++11 -O3 -arch=sm_35 -DCUDA_ERROR_CHECK #--ptxas-options=-v
+CXX        	  = nvcc
 DEBUG_OPTIONS = -G -DCUDA_ERROR_CHECK
+
+NVCC_FLAGS := $(ARCHS) --std=c++11 -m64 --expt-extended-lambda #--ptxas-options=-v
+GCC_FLAGS := -Xcompiler '-O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp'
+ARCHS := -gencode arch=compute_60,code=sm_60 \
+		-gencode arch=compute_35,code=sm_35
 
 SOURCES_CPP = CudaMultiMain.cu
 EXECUTABLE  = ../build/CudaMulti
 DATA		= ../data
+COMPARE		= compare
 
 ifeq ($(REAL),64)
   DEFINE_DOUBLE = -DUSE_DOUBLE
@@ -14,11 +20,7 @@ endif
 ifeq ($(REG),32)
   REG_COUNT = --maxrregcount=32
 else
-	ifeq ($(REG),64)
-	REG_COUNT = --maxrregcount=64
-	else
-	REG_COUNT =
-	endif
+  REG_COUNT =
 endif
 
 default: run
@@ -28,10 +30,10 @@ default: run
 
 compile: $(EXECUTABLE)
 $(EXECUTABLE): 
-	@$(CXX) $(REG_COUNT) $(DEFINE_DOUBLE) -o $(EXECUTABLE) $(SOURCES_CPP)
+	@$(CXX) $(NVCC_FLAGS) $(GCC_FLAGS) $(REG_COUNT) $(DEFINE_DOUBLE) -o $(EXECUTABLE) $(SOURCES_CPP)
 
 compile-debug: $(EXECUTABLE)
-	@$(CXX) $(REG_COUNT) $(DEFINE_DOUBLE) $(DEBUG_OPTIONS) -o $(EXECUTABLE) $(SOURCES_CPP)
+	@$(CXX) $(NVCC_FLAGS) $(GCC_FLAGS) $(REG_COUNT) $(DEFINE_DOUBLE) $(DEBUG_OPTIONS) -o $(EXECUTABLE) $(SOURCES_CPP)
 
 run: $(EXECUTABLE)
 	@./$(EXECUTABLE) -o $(DATA)/$(FILE).in -y $(DATA)/$(YIELD).in -s $(SORT) -v $(VERSION) -b $(BLOCK) -d $(DEVICE)

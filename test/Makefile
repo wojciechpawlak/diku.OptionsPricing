@@ -1,5 +1,9 @@
-CXX	= nvcc -std=c++11 -O3 -Xcompiler -fopenmp
-CPP	= g++ -std=c++11 -O3	 
+CXX	= nvcc
+CPP	= g++ 
+NVCC_FLAGS := $(ARCHS) --std=c++11 -m64 --expt-extended-lambda -Xcompiler '-O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp'
+GCC_FLAGS := -O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp
+ARCHS := -gencode arch=compute_60,code=sm_60 \
+				-gencode arch=compute_35,code=sm_35
 
 SOURCES_CPP = TestMain.cpp TestCuda.cu
 EXECUTABLE  = ../build/Test
@@ -22,18 +26,21 @@ endif
 default: run
 
 .cu.o: $(SOURCES_CPP)
-	@$(CXX) -c $@ $<
+	@$(CXX) $(NVCC_FLAGS)  -c $@ $<
 
 compile: $(EXECUTABLE)
 $(EXECUTABLE): 
-	@$(CXX) $(REG_COUNT) $(DEFINE_DOUBLE) -o $(EXECUTABLE) $(SOURCES_CPP)
+	@$(CXX) $(NVCC_FLAGS) $(REG_COUNT) $(DEFINE_DOUBLE) -o $(EXECUTABLE) $(SOURCES_CPP)
 
 compile-compare: $(EXECUTABLE_COMPARE)
 $(EXECUTABLE_COMPARE):
-	@$(CPP) $(DEFINE_DOUBLE) -o $(EXECUTABLE_COMPARE) $(SOURCES_COMPARE)
+	@$(CPP) $(GCC_FLAGS) $(DEFINE_DOUBLE) -o $(EXECUTABLE_COMPARE) $(SOURCES_COMPARE)
 
 compare: $(EXECUTABLE_COMPARE)
 	@cat $(DATA)/$(FILE1).out $(FILE2).out | ./$(EXECUTABLE_COMPARE)
 
 run: $(EXECUTABLE)
 	@./$(EXECUTABLE)
+
+clean:
+	@rm -f $(EXECUTABLE) $(EXECUTABLE_COMPARE)

@@ -591,3 +591,7 @@ build
 data/wmp
 .Rhistory
 *.Rproj
+results2
+*.nvact
+data2
+*.json

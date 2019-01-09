@@ -56,7 +56,7 @@ TEST_CASE("Book options")
     {
         vector<real> results;
         results.resize(options.N);
-        cuda::option::KernelRunCoalescedChunk kernelRun(64);
+        cuda::option::KernelRunCoalescedGranular kernelRun(64);
         kernelRun.run(options, yield, results, 64);
         compareVectors(results, seqResults);
     }
@@ -65,7 +65,7 @@ TEST_CASE("Book options")
     {
         vector<real> results;
         results.resize(options.N);
-        cuda::option::KernelRunCoalescedChunk kernelRun(32);
+        cuda::option::KernelRunCoalescedGranular kernelRun(32);
         kernelRun.run(options, yield, results, 64);
         compareVectors(results, seqResults);
     }

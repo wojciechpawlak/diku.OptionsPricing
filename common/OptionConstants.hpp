@@ -1,7 +1,6 @@
 #ifndef OPTION_CONSTANTS_HPP
 #define OPTION_CONSTANTS_HPP
 
-#include <algorithm>
 #include <vector>
 #include <cmath>
 

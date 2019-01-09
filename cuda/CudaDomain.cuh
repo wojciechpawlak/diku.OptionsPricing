@@ -3,12 +3,8 @@
 
 #include <chrono>
 
-#include <cuda_runtime.h>
-#include <thrust/extrema.h>
 #include <thrust/device_vector.h>
-#include <thrust/sort.h>
 #include <thrust/transform_scan.h>
-#include <limits>
 
 #include "../common/Options.hpp"
 #include "../common/OptionConstants.hpp"
@@ -236,17 +232,17 @@ __device__ void computeConstants(OptionConstants &c, const KernelOptions &option
 {
     c.termUnit = options.TermUnits[idx];
     auto T = options.Maturities[idx];
-    auto termUnitsInYearCount = ceil((real)year / c.termUnit);
-    auto termStepCount = options.TermStepCounts[idx];
+    const auto termUnitsInYearCount = ceil((real)year / c.termUnit);
+    const auto termStepCount = options.TermStepCounts[idx];
     c.t = options.Lengths[idx];
     c.n = termStepCount * termUnitsInYearCount * T;
     c.dt = termUnitsInYearCount / (real)termStepCount; // [years]
     c.type = options.Types[idx];
 
-    auto a = options.ReversionRates[idx];
+    const auto a = options.ReversionRates[idx];
     c.X = options.StrikePrices[idx];
-    auto sigma = options.Volatilities[idx];
-    auto V = sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a);
+    const auto sigma = options.Volatilities[idx];
+    const auto V = sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a);
     c.dr = sqrt(three * V);
     c.M = exp(-a * c.dt) - one;
 

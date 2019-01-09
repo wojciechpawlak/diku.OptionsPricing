@@ -2428,7 +2428,7 @@ namespace Matchers {
 // end catch_matchers_string.h
 // start catch_matchers_vector.h
 
-#include <algorithm>
+//#include <algorithm>
 
 namespace Catch {
 namespace Matchers {

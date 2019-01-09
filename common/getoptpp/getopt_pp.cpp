@@ -16,18 +16,6 @@ GetOpt_pp: Yet another C++ version of getopt.
     DEALINGS IN THE SOFTWARE.
 */
 
-#include <fstream>
-
-#if __APPLE__
-#include <crt_externs.h>
-#define environ (*_NSGetEnviron())
-#elif _WIN32
-#include <Stdio.h>
-#define environ _environ
-#else
-#include <unistd.h>
-#endif
-
 #include "getopt_pp.h"
 
 namespace GetOpt

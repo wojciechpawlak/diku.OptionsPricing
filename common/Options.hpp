@@ -3,7 +3,6 @@
 
 #include <cinttypes>
 #include <fstream>
-#include <stdexcept>
 #include <vector>
 
 #include "Arrays.hpp"
