@@ -595,3 +595,5 @@ results2
 *.nvact
 data2
 *.json
+/futhark/*.c
+/futhark/*.exe
