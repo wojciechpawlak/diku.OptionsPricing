@@ -1,0 +1,78 @@
+#ifndef OPTION_CONSTANTS_HPP
+#define OPTION_CONSTANTS_HPP
+
+#include <vector>
+#include <cmath>
+
+#include "CudaInterop.h"
+#include "Valuations.hpp"
+#include <cassert>
+
+namespace trinom
+{
+
+struct ValuationConstants
+{
+    real dt; // [years]
+    real dr;
+    real expmdrdt;
+    real X;
+    real M;
+    int32_t jmax;
+    int32_t n;
+    int32_t width;
+    uint16_t termUnit;
+    uint16_t termStepCount;
+    OptionType type; // char
+
+    uint16_t firstYCTermIdx;
+    int lastCIdx;
+
+    uint16_t LastExerciseStep;
+    uint16_t FirstExerciseStep;
+    uint16_t ExerciseStepFrequency;
+
+    const real *firstYieldCurveRate;
+    const uint16_t *firstYieldCurveTimeStep;
+    uint16_t yieldCurveTermCount;
+
+    DEVICE HOST ValuationConstants() {}
+
+    ValuationConstants(const Valuations &valuations, const int idx)
+    {
+        termUnit = valuations.TermUnits.at(idx);
+        const auto T = valuations.Maturities.at(idx);
+        const int termUnitsInYearCount = ceil((real)year / termUnit);
+        termStepCount = valuations.TermSteps.at(idx);
+        n = termStepCount * termUnitsInYearCount * T;
+        dt = termUnitsInYearCount / (real)termStepCount; // [years]
+        type = valuations.OptionTypes.at(idx);
+
+        auto a = valuations.MeanReversionRates.at(idx);
+        X = valuations.StrikePrices.at(idx);
+        auto sigma = valuations.Volatilities.at(idx);
+        auto V = sigma * sigma * (one - exp(-two * a * dt)) / (two * a);
+        dr = sqrt(three * V);
+        M = exp(-a * dt) - one;
+
+        expmdrdt = exp(-dr * dt);
+
+        // simplified computations
+        // dr = sigma * sqrt(three * dt);
+        // M = -a * dt;
+
+        jmax = (int)(minus184 / M) + 1;
+        width = 2 * jmax + 1;
+        //assert(valuations.YieldCurveIndices != NULL);
+        //assert(valuations.CashflowIndices != NULL);
+        firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
+        lastCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+
+        firstYieldCurveRate = &valuations.YieldCurveRates[firstYCTermIdx];
+        firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[firstYCTermIdx];
+        yieldCurveTermCount = valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]];
+    }
+};
+} // namespace trinom
+
+#endif

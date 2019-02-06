@@ -68,11 +68,11 @@ class KernelRunCoalescedBlock : public KernelRunBase
 {
 
 protected:
-    void runPreprocessing(CudaOptions &options, std::vector<real> &results) override
+    void runPreprocessing(CudaValuations &valuations, std::vector<real> &results) override
     {
         // Compute indices.
-        thrust::host_vector<int32_t> hostWidths = options.Widths;
-        thrust::host_vector<int32_t> hostHeights = options.Heights;
+        thrust::host_vector<int32_t> hostWidths = valuations.Widths;
+        thrust::host_vector<int32_t> hostHeights = valuations.Heights;
         thrust::host_vector<int32_t> hInds;
         thrust::host_vector<int32_t> hAlphaInds;
 
@@ -80,7 +80,7 @@ protected:
         auto maxHeightBlock = 0;
         auto prevInd = 0;
         auto maxOptionsBlock = 0;
-        for (auto i = 0; i < options.N; ++i)
+        for (auto i = 0; i < valuations.ValuationCount; ++i)
         {
             auto w = hostWidths[i];
             auto h = hostHeights[i];
@@ -104,11 +104,11 @@ protected:
                 maxHeightBlock = h;
             }
         }
-        auto alphasBlock = maxHeightBlock * (options.N - (hInds.empty() ? 0 : hInds.back()));
+        auto alphasBlock = maxHeightBlock * (valuations.ValuationCount - (hInds.empty() ? 0 : hInds.back()));
         hAlphaInds.push_back((hAlphaInds.empty() ? 0 : hAlphaInds.back()) + alphasBlock);
-        hInds.push_back(options.N);
+        hInds.push_back(valuations.ValuationCount);
 
-        auto optionsBlock = options.N - prevInd;
+        auto optionsBlock = valuations.ValuationCount - prevInd;
         if (optionsBlock > maxOptionsBlock) {
             maxOptionsBlock = optionsBlock;
         }
@@ -120,9 +120,9 @@ protected:
         KernelArgsValuesCoalescedBlock values;
         values.alphaInds = thrust::raw_pointer_cast(dAlphaInds.data());
 
-        options.DeviceMemory += vectorsizeof(dAlphaInds);
+        valuations.DeviceMemory += vectorsizeof(dAlphaInds);
 
-        runKernel<KernelArgsCoalescedBlock>(options, results, dInds, values, totalAlphasCount, maxOptionsBlock);
+        runKernel<KernelArgsCoalescedBlock>(valuations, results, dInds, values, totalAlphasCount, maxOptionsBlock);
     }
 };
 

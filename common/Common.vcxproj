@@ -120,10 +120,9 @@
     <ClInclude Include="Domain.hpp" />
     <ClInclude Include="getoptpp\getopt_pp.h" />
     <ClInclude Include="getoptpp\getopt_pp_standalone.h" />
-    <ClInclude Include="OptionConstants.hpp" />
-    <ClInclude Include="Options.hpp" />
+    <ClInclude Include="ValuationConstants.hpp" />
+    <ClInclude Include="Valuations.hpp" />
     <ClInclude Include="Real.hpp" />
-    <ClInclude Include="Yield.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="getoptpp\getopt_pp.cpp" />

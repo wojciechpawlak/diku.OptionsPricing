@@ -64,16 +64,16 @@ class KernelRunNaive : public KernelRunBase
 {
 
 protected:
-    void runPreprocessing(CudaOptions &options, std::vector<real> &results) override
+    void runPreprocessing(CudaValuations &valuations, std::vector<real> &results) override
     {
         // Compute indices.
-        thrust::host_vector<int32_t> hostWidths = options.Widths;
+        thrust::host_vector<int32_t> hostWidths = valuations.Widths;
         thrust::host_vector<int32_t> hInds;
 
         auto counter = 0;
         auto prevInd = 0;
         auto maxOptionsBlock = 0;
-        for (auto i = 0; i < options.N; ++i)
+        for (auto i = 0; i < valuations.ValuationCount; ++i)
         {
             auto w = hostWidths[i];
             counter += w;
@@ -89,9 +89,9 @@ protected:
                 prevInd = i;
             }
         }
-        hInds.push_back(options.N);
+        hInds.push_back(valuations.ValuationCount);
 
-        auto optionsBlock = options.N - prevInd;
+        auto optionsBlock = valuations.ValuationCount - prevInd;
         if (optionsBlock > maxOptionsBlock) {
             maxOptionsBlock = optionsBlock;
         }
@@ -101,10 +101,10 @@ protected:
         KernelArgsValuesNaive values;
 
         // Get the max height
-        values.maxHeight = thrust::max_element(options.Heights.begin(), options.Heights.end())[0];
-        const int totalAlphasCount = options.N * values.maxHeight;
+        values.maxHeight = thrust::max_element(valuations.Heights.begin(), valuations.Heights.end())[0];
+        const int totalAlphasCount = valuations.ValuationCount * values.maxHeight;
 
-        runKernel<KernelArgsNaive>(options, results, dInds, values, totalAlphasCount, maxOptionsBlock);
+        runKernel<KernelArgsNaive>(valuations, results, dInds, values, totalAlphasCount, maxOptionsBlock);
     }
 };
 

@@ -12,13 +12,19 @@ namespace option
 
 struct KernelArgsValuesGranular
 {
-    real *res;
+    real *ratesAll;
+    real *pusAll;
+    real *pmsAll;
+    real *pdsAll;
     real *QsAll;
     real *QsCopyAll;
     real *alphasAll;
+    //real *OptPsAll;
+    //real *OptPsCopyAll;
     int32_t *QsInds;
     int32_t *alphasInds;
     int32_t granularity;
+    real *res;
 };
 
 class KernelArgsCoalescedGranular : public KernelArgsBase<KernelArgsValuesGranular>
@@ -33,7 +39,7 @@ public:
 
     KernelArgsCoalescedGranular(KernelArgsValuesGranular &v) : KernelArgsBase(v) { }
 
-    __device__ inline void init(const KernelOptions &options) override
+    __device__ inline void init(const KernelValuations &valuations) override
     {
         const int index = getIdx() / values.granularity;
         widthStartIndex = index == 0 ? 0 : values.QsInds[index - 1];
@@ -51,29 +57,54 @@ public:
         }
     }
 
-    __device__ inline void setQAt(const int index, const real value) override
+    __device__ inline real getRateAt(const int index) const override { return values.ratesAll[widthStartIndex + getArrayIndex(index)]; }
+
+    __device__ inline void setRateAt(const int index, const real value) override { values.ratesAll[widthStartIndex + getArrayIndex(index)] = value; }
+
+    __device__ inline real getPAt(const int index, const int branch) override
     {
-        values.QsAll[widthStartIndex + getArrayIndex(index)] = value;
+        switch (branch)
+        {
+        case 1:
+            return values.pusAll[widthStartIndex + getArrayIndex(index)]; // up
+        case 2:
+            return values.pmsAll[widthStartIndex + getArrayIndex(index)]; // mid
+        case 3:
+            return values.pdsAll[widthStartIndex + getArrayIndex(index)]; // down
+        }
+        return 0;
     }
 
-    __device__ inline void setQCopyAt(const int index, const real value) override
+    __device__ inline void setPAt(const int index, const int branch, const real value) override
     {
-        values.QsCopyAll[widthStartIndex + getArrayIndex(index)] = value;
-    }
-
-    __device__ inline void setAlphaAt(const int index, const real value) override
-    {
-        values.alphasAll[heightStartIndex + getArrayIndex(index)] = value;
-    }
-
-    __device__ inline void setResult(const int jmax) override
-    {
-        values.res[getIdx()] = values.QsAll[widthStartIndex + getArrayIndex(jmax)];
+        switch (branch)
+        {
+        case 1:
+            values.pusAll[widthStartIndex + getArrayIndex(index)] = value; // up
+        case 2:
+            values.pmsAll[widthStartIndex + getArrayIndex(index)] = value; // mid
+        case 3:
+            values.pdsAll[widthStartIndex + getArrayIndex(index)] = value; // down
+        }
     }
 
     __device__ inline real getQAt(const int index) const override { return values.QsAll[widthStartIndex + getArrayIndex(index)]; }
 
+    __device__ inline void setQAt(const int index, const real value) override { values.QsAll[widthStartIndex + getArrayIndex(index)] = value; }
+
+    __device__ inline void setQCopyAt(const int index, const real value) override { values.QsCopyAll[widthStartIndex + getArrayIndex(index)] = value; }
+
     __device__ inline real getAlphaAt(const int index) const override { return values.alphasAll[heightStartIndex + getArrayIndex(index)]; }
+
+    __device__ inline void setAlphaAt(const int index, const real value) override { values.alphasAll[heightStartIndex + getArrayIndex(index)] = value; }
+
+    //__device__ inline real getOptPAt(const int index) const override { return values.OptPsAll[widthStartIndex + getArrayIndex(index)]; }
+
+    //__device__ inline void setOptPAt(const int index, const real value) override { values.OptPsAll[widthStartIndex + getArrayIndex(index)] = value; }
+
+    //__device__ inline void setOptPCopyAt(const int index, const real value) override { values.OptPsCopyAll[widthStartIndex + getArrayIndex(index)] = value; }
+
+    __device__ inline void setResult(const int jmax) override { values.res[getIdx()] = values.QsAll[widthStartIndex + getArrayIndex(jmax)]; }
 };
 
 struct same_granularity_indices
@@ -103,19 +134,19 @@ public:
     KernelRunCoalescedGranular(int32_t granularity) : Granularity(granularity) { }
 
 protected:
-    void runPreprocessing(CudaOptions &options, std::vector<real> &results) override
+    void runPreprocessing(CudaValuations &valuations, std::vector<real> &results) override
     {
         // Create block indices.
-        thrust::device_vector<int32_t> keys(options.N);
+        thrust::device_vector<int32_t> keys(valuations.ValuationCount);
         thrust::sequence(keys.begin(), keys.end());
 
         if (Granularity == -1) Granularity = BlockSize;
-        const auto count = ceil(options.N / ((float)Granularity));
+        const auto count = ceil(valuations.ValuationCount / ((float)Granularity));
         thrust::device_vector<int32_t> QsInds(count);
         thrust::device_vector<int32_t> alphasInds(count);
         thrust::device_vector<int32_t> keysOut(count);
-        thrust::reduce_by_key(keys.begin(), keys.end(), options.Widths.begin(), keysOut.begin(), QsInds.begin(), same_granularity_indices(Granularity), thrust::maximum<int32_t>());
-        thrust::reduce_by_key(keys.begin(), keys.end(), options.Heights.begin(), keysOut.begin(), alphasInds.begin(), same_granularity_indices(Granularity), thrust::maximum<int32_t>());
+        thrust::reduce_by_key(keys.begin(), keys.end(), valuations.Widths.begin(), keysOut.begin(), QsInds.begin(), same_granularity_indices(Granularity), thrust::maximum<int32_t>());
+        thrust::reduce_by_key(keys.begin(), keys.end(), valuations.Heights.begin(), keysOut.begin(), alphasInds.begin(), same_granularity_indices(Granularity), thrust::maximum<int32_t>());
     
         thrust::transform_inclusive_scan(QsInds.begin(), QsInds.end(), QsInds.begin(), times_granularity(Granularity), thrust::plus<int32_t>());
         thrust::transform_inclusive_scan(alphasInds.begin(), alphasInds.end(), alphasInds.begin(), times_granularity(Granularity), thrust::plus<int32_t>());
@@ -128,12 +159,12 @@ protected:
         values.QsInds  = thrust::raw_pointer_cast(QsInds.data());
         values.alphasInds = thrust::raw_pointer_cast(alphasInds.data());
 
-        options.DeviceMemory += vectorsizeof(keys);
-        options.DeviceMemory += vectorsizeof(QsInds);
-        options.DeviceMemory += vectorsizeof(alphasInds);
-        options.DeviceMemory += vectorsizeof(keysOut);
+        valuations.DeviceMemory += vectorsizeof(keys);
+        valuations.DeviceMemory += vectorsizeof(QsInds);
+        valuations.DeviceMemory += vectorsizeof(alphasInds);
+        valuations.DeviceMemory += vectorsizeof(keysOut);
 
-        runKernel<KernelArgsCoalescedGranular>(options, results, totalQsCount, totalAlphasCount, values);
+        runKernel<KernelArgsCoalescedGranular>(valuations, results, totalQsCount, totalAlphasCount, values);
     }
 };
 

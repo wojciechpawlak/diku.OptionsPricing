@@ -1,7 +1,7 @@
 #ifndef SEQ_HPP
 #define SEQ_HPP
 
-#include "../common/OptionConstants.hpp"
+#include "../common/ValuationConstants.hpp"
 #include "../common/Domain.hpp"
 
 using namespace trinom;
@@ -21,7 +21,7 @@ struct jvalue
  *  Sequential version that computes the bond tree until bond maturity
  *  and prices the option on maturity during backward propagation.
  **/
-real computeSingleOption(const OptionConstants &c, const Yield &yield)
+real computeSingleOption(const ValuationConstants &c, const YieldCurves &yield)
 {
     // Precompute probabilities and rates for all js.
     auto jvalues = new jvalue[c.width];
@@ -56,7 +56,7 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
 
     auto alphas = new real[c.n + 1]();                                                                  // alphas[i]
     int lastIdx = 0;
-    alphas[0] = getYieldAtYear(c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.N, &lastIdx); // initial dt-period interest rate
+    alphas[0] = interpolateYieldAtTimeStep(c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.Count, &lastIdx); // initial dt-period interest rate
     printf("0 %d alpha %f \n", 0, alphas[0]);
 
 
@@ -107,7 +107,7 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
             alpha_val += QsCopy[jind] * exp(-jval.rate * c.dt);
         }
 
-        alphas[i + 1] = computeAlpha(alpha_val, i, c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.N, &lastIdx);
+        alphas[i + 1] = computeAlpha(alpha_val, i, c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.Count, &lastIdx);
         printf("2 %d alpha %f \n", i+1, alphas[i + 1]);
         // Switch Qs
         auto QsT = Qs;
@@ -162,7 +162,7 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
             }
 
             // after obtaining the result from (i+1) nodes, set the call for ith node
-            callCopy[jind] = computeCallValue(isMaturity, c.X, c.type, res);
+            callCopy[jind] = getOptionPayoff(isMaturity, c.X, c.type, res);
         }
 
         // Switch call arrays
@@ -183,12 +183,12 @@ real computeSingleOption(const OptionConstants &c, const Yield &yield)
     return result;
 }
 
-void computeOptions(const Options &options, const Yield &yield, std::vector<real> &results)
+void computeOptions(const Valuations &valuations, std::vector<real> &results)
 {
 #pragma omp parallel for
-    for (auto i = 0; i < options.N; ++i)
+    for (auto i = 0; i < valuations.ValuationCount; ++i)
     {
-        OptionConstants c(options, i);
+        ValuationConstants c(valuations, i);
         auto result = computeSingleOption(c, yield);
         results[i] = result;
     }

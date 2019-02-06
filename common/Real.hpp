@@ -28,7 +28,7 @@ typedef float real;
 #define three (real)3.0
 #define six (real)6.0
 #define seven (real)7.0
-#define year (real)365.0
+#define year (real)360.0
 #define minus184 (real) - 0.184
 
 } // namespace trinom

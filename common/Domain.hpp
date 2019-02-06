@@ -2,13 +2,11 @@
 #define DOMAIN_HPP
 
 #include "CudaInterop.h"
-#include "OptionConstants.hpp"
-#include "Yield.hpp"
 
 namespace trinom
 {
 
-DEVICE real getYieldAtYear(const real t, const int termUnit, const real *prices, const int32_t *timeSteps, const int size, int *lastIdx)
+DEVICE real interpolateRateAtTimeStep(const real t, const int termUnit, const real *prices, const uint16_t *timeSteps, const uint16_t size, int *lastIdx)
 {
     const int tDays = (int)ROUND(t * termUnit);
     auto first = 0;
@@ -96,10 +94,10 @@ DEVICE inline real PD_C(int j, real M)
     return one / six + (j * j * M * M + j * M) * half;
 }
 
-DEVICE inline real computeAlpha(const real aggregatedQs, const int i, const real dt, const int termUnit, const real *prices, const int32_t *timeSteps, const int size, int *lastIdx)
+DEVICE inline real computeAlpha(const real aggregatedQs, const int i, const real dt, const int termUnit, const real *prices, const uint16_t *timeSteps, const int size, int *lastIdx)
 {
     auto ti = (i + 2) * dt;
-    auto R = getYieldAtYear(ti, termUnit, prices, timeSteps, size, lastIdx); // discount rate
+    auto R = interpolateRateAtTimeStep(ti, termUnit, prices, timeSteps, size, lastIdx); // discount rate
     auto P = exp(-R * ti);                                          // discount bond price
     return log(aggregatedQs / P) / dt;                              // new alpha
 }
@@ -145,18 +143,29 @@ DEVICE real computeJValue(const int j, const int jmax, const real M, const int e
     return 0;
 }
 
-DEVICE inline real computeCallValue(bool isMaturity, const real X, const OptionType type, const real res)
+DEVICE real computeAccruedInterest(const uint16_t termStepCounts, const int i, const int prevCouponIdx, const int nextCouponIdx, const real nextCoupon)
 {
-    real ret = res;
+    real couponsTimeDiff = nextCouponIdx - prevCouponIdx;
+    couponsTimeDiff = couponsTimeDiff <= 0.0 ? termStepCounts : couponsTimeDiff;
+    real eventsTimeDiff = nextCouponIdx - i;
+    eventsTimeDiff = eventsTimeDiff <= 0.0 ? 0.0 : eventsTimeDiff;
+    return (couponsTimeDiff - (real)eventsTimeDiff) / couponsTimeDiff * nextCoupon;
+}
+
+DEVICE inline real getOptionPayoff(bool isMaturity, const real strike, const OptionType type, const real bondPrice, const real ai)
+{
+    real ret = bondPrice;
     if (isMaturity)
     {
         switch (type)
         {
-        case OptionType::PUT:
-            ret = MAX(X - res, zero);
-            break;
         case OptionType::CALL:
-            ret = MAX(res - X, zero);
+            //ret = MAX(bondPrice - X, zero); // Call Option
+            ret = bondPrice > strike ? strike + ai : bondPrice; // Call on a bond (embedded)
+            break;
+        case OptionType::PUT:
+            //ret = MAX(X - bondPrice, zero);
+            ret = strike > bondPrice ? strike + ai : bondPrice; // Put on a bond (embedded)
             break;
         }
     }

@@ -4,6 +4,7 @@
 #include "../cuda/CudaDomain.cuh"
 
 #define DEFAULT_BLOCK_SIZE 256
+#define PRINT_IDX 5
 
 using namespace trinom;
 
@@ -15,10 +16,16 @@ namespace option
 
 struct KernelArgsValues
 {
-    real *res;
-    real *QsAll;
-    real *QsCopyAll;
-    real *alphasAll;
+    real *ratesAll;
+    real *pusAll;
+    real *pmsAll;
+    real *pdsAll;
+    real *QsAll;        // intermediate results: forward propagation: evolution of the short-rate process, backward propagation: bond prices
+    real *QsCopyAll;    // intermediate results: buffer, forward propagation: evolution of the short-rate process, backward propagation: bond prices
+    real *alphasAll;    // intermediate results: analytical displacement of the short-rate process tree
+    //real *OptPsAll;     // backward propagation: option prices
+    //real *OptPsCopyAll; // buffer, backward propagation: option prices
+    real *res;          // pricing result
 };
 
 /**
@@ -38,7 +45,7 @@ public:
     
     __device__ inline int getIdx() const { return threadIdx.x + blockDim.x * blockIdx.x; }
 
-    __device__ virtual void init(const KernelOptions &options) = 0;
+    __device__ virtual void init(const KernelValuations &valuations) = 0;
 
     __device__ virtual void switchQs()
     {
@@ -47,129 +54,200 @@ public:
         values.QsCopyAll = QsT;
     }
 
+    //__device__ virtual void switchOptPs()
+    //{
+    //    auto OptPsT = values.OptPsAll;
+    //    values.OptPsAll = values.OptPsCopyAll;
+    //    values.OptPsCopyAll = OptPsT;
+    //}
+
     __device__ virtual void fillQs(const int count, const int value) = 0;
+
+    __device__ virtual real getRateAt(const int index) const = 0;
+
+    __device__ virtual void setRateAt(const int index, const real value) = 0;
+
+    __device__ virtual real getPAt(const int index, const int branch) = 0;
+
+    __device__ virtual void setPAt(const int index, const int branch, const real value) = 0;
+
+    __device__ virtual real getQAt(const int index) const = 0;
 
     __device__ virtual void setQAt(const int index, const real value) = 0;
 
     __device__ virtual void setQCopyAt(const int index, const real value) = 0;
 
+    __device__ virtual real getAlphaAt(const int index) const = 0;
+
     __device__ virtual void setAlphaAt(const int index, const real value) = 0;
 
+    //__device__ virtual real getOptPAt(const int index) const = 0;
+
+    //__device__ virtual void setOptPAt(const int index, const real value) = 0;
+
+    //__device__ virtual void setOptPCopyAt(const int index, const real value) = 0;
+
     __device__ virtual void setResult(const int jmax) = 0;
-
-    __device__ virtual real getQAt(const int index) const = 0;
-
-    __device__ virtual real getAlphaAt(const int index) const = 0;
 };
 
 template<class KernelArgsT>
-__global__ void kernelOneOptionPerThread(const KernelOptions options, KernelArgsT args)
+__global__ void kernelOneOptionPerThread(const KernelValuations valuations, KernelArgsT args)
 {
     auto idx = args.getIdx();
 
-    // Out of options check
-    if (idx >= options.N) return;
+    // Out of valuations check
+    if (idx >= valuations.ValuationCount) return;
 
-    OptionConstants c;
-    computeConstants(c, options, idx);
-
-    args.init(options);
+    ValuationConstants c;
+    computeConstants(c, valuations, idx);
+    //printf("%d: %d %d %d %d %d %d %d %d %d\n", idx, c.ycIdx, c.firstYCTermIdx, c.lastYCTermIdx, c.cIdx, c.firstCIdx, c.lastCIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
+    //printf("%d: %f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
+    args.init(valuations);
     args.setQAt(c.jmax, one);
     int lastIdx = 0;
-    args.setAlphaAt(0, getYieldAtYear(c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize, &lastIdx));
-    //auto alpha = getYieldAtYear(c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize, &lastIdx);
+    auto alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastIdx);
+    //args.setAlphaAt(0, exp(-alpha * c.dt));
+    args.setAlphaAt(0, alpha);
+    //args.setAlphaAt(0, getYieldAtYear(c.dt, c.termUnit, valuations.YieldCurveRates, valuations.YieldCurveTimeSteps, valuations.YieldCurveTerms[c.ycIdx], &lastIdx));
+    //auto alpha = getYieldAtYear(c.dt, c.termUnit, valuations.YieldPrices, valuations.YieldTimeSteps, valuations.YieldSize, &lastIdx);
     //args.setAlphaAt(0, alpha);
     //if (args.getIdx() == 2)
     //    printf("0 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
     //        0, alpha, args.getAlphaAt(0), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
 
+    // Precompute rates for each node on the width on the tree (constant over forward propagation)
+    for (auto j = -c.jmax; j <= c.jmax; ++j)
+    {
+        auto jind = j + c.jmax;
+        args.setRateAt(jind, j * c.dr);
+    }
+
+    // Precompute differences between nodes; possible, because dr and dt are constant
+    //for (int j = -c.jmax; j <= c.jmax; j++)
+    //{
+    //    auto jind = j + c.jmax;
+    //    args.setRateAt(jind, exp(-((real)j - 1)*c.dr*c.dt)); // emjm1Rdts[idx2d_col(j + jmax - 1, threadIndex, padSize)] * emdrdt
+    //}
+
+    // Precompute probabilities for each node on the width on the tree (constant over forward and backward propagation)
+    args.setPAt(0, 1, PU_B(-c.jmax, c.M)); args.setPAt(0, 2, PM_B(-c.jmax, c.M)); args.setPAt(0, 3, PD_B(-c.jmax, c.M));
+    //if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, 0, args.getPAt(0, 1), args.getPAt(0, 2), args.getPAt(0, 3));
+    for (auto j = -c.jmax + 1; j < c.jmax; ++j)
+    {
+        auto jind = j + c.jmax;
+        args.setPAt(jind, 1, PU_A(j, c.M)); args.setPAt(jind, 2, PM_A(j, c.M)); args.setPAt(jind, 3, PD_A(j, c.M));
+        //if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, jind, args.getPAt(jind, 1), args.getPAt(jind, 2), args.getPAt(jind, 3));
+    }
+    args.setPAt(c.width - 1, 1, PU_C(c.jmax, c.M)); args.setPAt(c.width - 1, 2, PM_C(c.jmax, c.M)); args.setPAt(c.width - 1, 3, PD_C(c.jmax, c.M));
+    //if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, c.width - 1, args.getPAt(c.width - 1, 1), args.getPAt(c.width - 1, 2), args.getPAt(c.width - 1, 3));
+
     // Forward propagation
     for (auto i = 1; i <= c.n; ++i)
     {
         const auto jhigh = min(i, c.jmax);
-        const auto alpha = args.getAlphaAt(i-1);
+        //const auto alpha = args.getAlphaAt(i-1);
+
         //if (args.getIdx() == 2)
         //    printf("1 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
         //        i - 1, alpha, args.getAlphaAt(i - 1), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
 
-        real alpha_val = 0;
+        real alpha_aggregate = zero;
 
         // Precompute Qexp
+        alpha = args.getAlphaAt(i - 1);
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j
-            real Qexp = args.getQAt(jind) * exp(-(alpha + j * c.dr) * c.dt);
+            //real Qexp = args.getQAt(jind) * alpha * args.getRateAt(jind) * c.expmdrdt;
+            real Qexp = args.getQAt(jind) * exp(-(alpha + args.getRateAt(jind)) * c.dt);
             args.setQAt(jind, Qexp);
         }
-
         // Forward iteration step, compute Qs in the next time step
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j            
+
+            //const auto expmjm1AlphadrdtBase = args.getRateAt(jind) * args.getAlphaAt(i-1);
             
-            const auto expp1 = j == jhigh ? zero : args.getQAt(jind + 1);
+            //const auto expu1 = j == jhigh ? zero : expmjm1AlphadrdtBase * c.expmdrdt * c.expmdrdt;
+            //const auto expm = expmjm1AlphadrdtBase * c.expmdrdt;
+            //const auto expd1 = j == -jhigh ? zero : expmjm1AlphadrdtBase;
+
+            const auto expu1 = j == jhigh ? zero : args.getQAt(jind + 1);
             const auto expm = args.getQAt(jind);
-            const auto expm1 = j == -jhigh ? zero : args.getQAt(jind - 1);
+            const auto expd1 = j == -jhigh ? zero : args.getQAt(jind - 1);
+
             real Q;
 
-            if (i == 1) {
+            if (i == 1)
+            {
                 if (j == -jhigh) {
-                    Q = computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+                    Q = args.getPAt(jind + 1, 3) * expu1;
                 } else if (j == jhigh) {
-                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1;
+                    Q = args.getPAt(jind - 1, 1) * expd1;
                 } else {
-                    Q = computeJValue(j, c.jmax, c.M, 2) * expm;
+                    Q = args.getPAt(jind, 2) * expm;
+                }
+            } 
+            else if (i <= c.jmax)
+            {
+                if (j == -jhigh) {
+                    Q = args.getPAt(jind + 1, 3) * expu1;
+                } else if (j == -jhigh + 1) {
+                    Q = args.getPAt(jind, 2) * expm +
+                        args.getPAt(jind + 1, 3) * expu1;
+                } else if (j == jhigh) {
+                    Q = args.getPAt(jind - 1, 1) * expd1;
+                } else if (j == jhigh - 1) {
+                    Q = args.getPAt(jind - 1, 1) * expd1 +
+                        args.getPAt(jind, 2) * expm;
+                } else {
+                    Q = args.getPAt(jind - 1, 1) * expd1 +
+                        args.getPAt(jind, 2) * expm +
+                        args.getPAt(jind + 1, 3) * expu1;
                 }
             }
-            else if (i <= c.jmax) {
+            else
+            {
                 if (j == -jhigh) {
-                    Q = computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+                    Q = args.getPAt(jind, 3) * expm +
+                        args.getPAt(jind + 1, 3) * expu1;
                 } else if (j == -jhigh + 1) {
-                    Q = computeJValue(j, c.jmax, c.M, 2) * expm +
-                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
-                } else if (j == jhigh) {
-                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1;
-                } else if (j == jhigh - 1) {
-                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
-                        computeJValue(j, c.jmax, c.M, 2) * expm;
-                } else {
-                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
-                        computeJValue(j, c.jmax, c.M, 2) * expm +
-                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
-                }
-            } else {
-                if (j == -jhigh) {
-                    Q = computeJValue(j, c.jmax, c.M, 3) * expm +
-                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
-                } else if (j == -jhigh + 1) {
-                    Q = computeJValue(j - 1, c.jmax, c.M, 2) * expm1 +
-                        computeJValue(j, c.jmax, c.M, 2) * expm +
-                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+                    Q = args.getPAt(jind - 1, 2) * expd1 +
+                        args.getPAt(jind, 2) * expm +
+                        args.getPAt(jind + 1, 3) * expu1;
                             
                 } else if (j == jhigh) {
-                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
-                        computeJValue(j, c.jmax, c.M, 1) * expm;
+                    Q = args.getPAt(jind - 1, 1) * expd1 +
+                        args.getPAt(jind, 1) * expm;
                 } else if (j == jhigh - 1) {
-                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
-                        computeJValue(j, c.jmax, c.M, 2) * expm +
-                        computeJValue(j + 1, c.jmax, c.M, 2) * expp1;
-                            
+                    Q = args.getPAt(jind - 1, 1) * expd1 +
+                        args.getPAt(jind, 2) * expm +
+                        args.getPAt(jind + 1, 2) * expu1;
                 } else {
-                    Q = ((j == -jhigh + 2) ? computeJValue(j - 2, c.jmax, c.M, 1) * args.getQAt(jind - 2) : zero) +
-                        computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
-                        computeJValue(j, c.jmax, c.M, 2) * expm +
-                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1 +
-                        ((j == jhigh - 2) ? computeJValue(j + 2, c.jmax, c.M, 3) * args.getQAt(jind + 2) : zero);
+                    Q = ((j == -jhigh + 2) ? args.getPAt(jind - 2,  1) * args.getQAt(jind - 2) : zero) +
+                        args.getPAt(jind - 1, 1) * expd1 +
+                        args.getPAt(jind, 2) * expm +
+                        args.getPAt(jind + 1, 3) * expu1 +
+                        ((j == jhigh - 2) ? args.getPAt(jind + 2, 3) * args.getQAt(jind + 2) : zero);
                 }
             }
             // Determine the new alpha using equation 30.22
             // by summing up Qs from the next time step
+            //if (idx == 1)
+            //{
+            //    printf("%d:%d %.18f ", i, jind, Q);
+            //}
             args.setQCopyAt(jind, Q); 
-            alpha_val += Q * exp(-j * c.dr * c.dt);
+            //alpha_aggregate += Q * args.getRateAt(jind) * c.expmdrdt;
+            alpha_aggregate += Q * exp(-args.getRateAt(jind) * c.dt);
         }
 
-        args.setAlphaAt(i, computeAlpha(alpha_val, i - 1, c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize, &lastIdx));
-        //auto alpha2 = computeAlpha(alpha_val, i - 1, c.dt, c.termUnit, options.YieldPrices, options.YieldTimeSteps, options.YieldSize, &lastIdx);
+        alpha = computeAlpha(alpha_aggregate, i - 1, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastIdx);
+        //args.setAlphaAt(i, exp(-alpha * c.dt));
+        args.setAlphaAt(i, alpha);
+        if (idx == PRINT_IDX) printf("%d: %.18f %.18f %.18f\n", i, alpha, args.getAlphaAt(i), exp(-alpha * c.dt));
+        //auto alpha2 = computeAlpha(alpha_val, i - 1, c.dt, c.termUnit, valuations.YieldPrices, valuations.YieldTimeSteps, valuations.YieldSize, &lastIdx);
         //args.setAlphaAt(i, alpha2);
         //if (args.getIdx() == 2)
         //    printf("2 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
@@ -180,7 +258,10 @@ __global__ void kernelOneOptionPerThread(const KernelOptions options, KernelArgs
     }
     
     // Backward propagation
-    args.fillQs(c.width, 100); // initialize to 100$
+    // TODO Find out how to handle oas spread
+    printf("%d: %d %f %f %d\n", idx, c.lastCIdx, valuations.Repayments[c.lastCIdx], valuations.Coupons[c.lastCIdx], valuations.CashflowSteps[c.lastCIdx]);
+    args.fillQs(c.width, valuations.Repayments[c.lastCIdx] + valuations.Coupons[c.lastCIdx]); // initialize to par/face value + last repayment + coupon
+    auto lastUsedCStep = valuations.CashflowSteps[--c.lastCIdx];
 
     for (auto i = c.n - 1; i >= 0; --i)
     {
@@ -189,45 +270,71 @@ __global__ void kernelOneOptionPerThread(const KernelOptions options, KernelArgs
         //if (args.getIdx() == 2)
         //    printf("3 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
         //        i, alpha, args.getAlphaAt(i), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
-        const auto isMaturity = i == ((int)(c.t / c.dt));
+        
+        // check if there is an option exercise at the current step
+        const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastUsedCStep - i) % c.ExerciseStepFrequency == 0; // Bermudan
+        if (idx == PRINT_IDX) printf("%d: %d %d %d %d\n", i, isExerciseStep, lastUsedCStep, (lastUsedCStep - i) % c.ExerciseStepFrequency, (lastUsedCStep - i) % c.ExerciseStepFrequency == 0);
+        // add coupon and repayments
+        if (i == lastUsedCStep - 1)
+        {
+            if (idx == PRINT_IDX) printf("%d: %d coupon: %.18f\n", i, c.lastCIdx, args.getQAt(c.jmax));
+            for (auto j = -jhigh; j <= jhigh; ++j)
+            {
+                const auto jind = j + c.jmax;      // array index for j
+                args.setQAt(jind, args.getQAt(jind) + valuations.Repayments[c.lastCIdx] + valuations.Coupons[c.lastCIdx]);
+            }
+            if (idx == PRINT_IDX) printf("%d: %d coupon: %.18f\n", i, c.lastCIdx, args.getQAt(c.jmax));
+            lastUsedCStep = (--c.lastCIdx >= 0) ? valuations.CashflowSteps[c.lastCIdx] : 0;
+        }
 
+        // calculate accrued interest from cashflow
+        real ai = 0.0;
+        if (isExerciseStep && lastUsedCStep != 0) ai = computeAccruedInterest(c.termStepCount, i, lastUsedCStep, valuations.CashflowSteps[c.lastCIdx + 1], valuations.Coupons[c.lastCIdx]);
+        if (idx == PRINT_IDX && isExerciseStep) 
+            printf("%d: ai %f %d %d %d %f %d %d %f\n", i, ai, c.termStepCount, lastUsedCStep, valuations.CashflowSteps[c.lastCIdx + 1], valuations.Coupons[c.lastCIdx],
+                valuations.CashflowSteps[c.lastCIdx + 1] - lastUsedCStep, valuations.CashflowSteps[c.lastCIdx + 1] - i, 
+                (real)(valuations.CashflowSteps[c.lastCIdx + 1] - lastUsedCStep - valuations.CashflowSteps[c.lastCIdx + 1] - i) / (valuations.CashflowSteps[c.lastCIdx + 1] - lastUsedCStep));
+
+
+        //const auto expmjm1AlphadrdtBase = args.getAlphaAt(i) * c.expmdrdt;
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j
-            const auto callExp = exp(-(alpha + j * c.dr) * c.dt);
+            //const auto discFactor = expmjm1AlphadrdtBase * args.getRateAt(jind);
+            const auto discFactor = exp(-(alpha + args.getRateAt(jind)) * c.dt);
 
             real res;
             if (j == c.jmax)
             {
                 // Top edge branching
-                res = (computeJValue(j, c.jmax, c.M, 1) * args.getQAt(jind) +
-                    computeJValue(j, c.jmax, c.M, 2) * args.getQAt(jind - 1) +
-                    computeJValue(j, c.jmax, c.M, 3) * args.getQAt(jind - 2)) *
-                        callExp;
+                res = (args.getPAt(jind, 1) * args.getQAt(jind) +
+                    args.getPAt(jind, 2) * args.getQAt(jind - 1) +
+                    args.getPAt(jind, 3) * args.getQAt(jind - 2)) *
+                        discFactor;
             }
             else if (j == -c.jmax)
-            {
-                // Bottom edge branching
-                res = (computeJValue(j, c.jmax, c.M, 1) * args.getQAt(jind + 2) +
-                    computeJValue(j, c.jmax, c.M, 2) * args.getQAt(jind + 1) +
-                    computeJValue(j, c.jmax, c.M, 3) * args.getQAt(jind)) *
-                        callExp;
+            {  
+                res = (args.getPAt(jind, 1) * args.getQAt(jind + 2) +
+                    args.getPAt(jind, 2) * args.getQAt(jind + 1) +
+                    args.getPAt(jind, 3) * args.getQAt(jind)) *
+                        discFactor;
             }
             else
             {
                 // Standard branching
-                res = (computeJValue(j, c.jmax, c.M, 1) * args.getQAt(jind + 1) +
-                    computeJValue(j, c.jmax, c.M, 2) * args.getQAt(jind) +
-                    computeJValue(j, c.jmax, c.M, 3) * args.getQAt(jind - 1)) *
-                        callExp;
+                res = (args.getPAt(jind, 1) * args.getQAt(jind + 1) +
+                    args.getPAt(jind, 2) * args.getQAt(jind) +
+                    args.getPAt(jind, 3) * args.getQAt(jind - 1)) *
+                        discFactor;
             }
 
             // after obtaining the result from (i+1) nodes, set the call for ith node
-            args.setQCopyAt(jind, computeCallValue(isMaturity, c.X, c.type, res));
+            args.setQCopyAt(jind, getOptionPayoff(isExerciseStep, c.X, c.type, res, ai));
         }
 
         // Switch Qs
         args.switchQs();
+        if (idx == PRINT_IDX) printf("%d: %.18f\n", i, args.getQAt(c.jmax));
     }
 
     args.setResult(c.jmax);
@@ -244,35 +351,43 @@ private:
 protected:
     int BlockSize;
 
-    virtual void runPreprocessing(CudaOptions &options, std::vector<real> &results) = 0;
+    virtual void runPreprocessing(CudaValuations &valuations, std::vector<real> &results) = 0;
 
     template<class KernelArgsT, class KernelArgsValuesT>
-    void runKernel(CudaOptions &options, std::vector<real> &results, const int totalQsCount, const int totalAlphasCount, KernelArgsValuesT &values)
+    void runKernel(CudaValuations &valuations, std::vector<real> &results, const int totalQsCount, const int totalAlphasCount, KernelArgsValuesT &values)
     {
+        thrust::device_vector<real> rates(totalQsCount);
+        thrust::device_vector<real> pus(totalQsCount);
+        thrust::device_vector<real> pms(totalQsCount);
+        thrust::device_vector<real> pds(totalQsCount);
         thrust::device_vector<real> Qs(totalQsCount);
         thrust::device_vector<real> QsCopy(totalQsCount);
         thrust::device_vector<real> alphas(totalAlphasCount);
-        thrust::device_vector<real> result(options.N);
+        thrust::device_vector<real> result(valuations.ValuationCount);
 
-        const auto blockCount = ceil(options.N / ((float)BlockSize));
+        const auto blockCount = ceil(valuations.ValuationCount / ((float)BlockSize));
 
-        options.DeviceMemory += vectorsizeof(Qs);
-        options.DeviceMemory += vectorsizeof(QsCopy);
-        options.DeviceMemory += vectorsizeof(alphas);
-        options.DeviceMemory += vectorsizeof(result);
-        runtime.DeviceMemory = options.DeviceMemory;
+        valuations.DeviceMemory += vectorsizeof(rates);
+        valuations.DeviceMemory += vectorsizeof(pus);
+        valuations.DeviceMemory += vectorsizeof(pms);
+        valuations.DeviceMemory += vectorsizeof(pds);
+        valuations.DeviceMemory += vectorsizeof(Qs);
+        valuations.DeviceMemory += vectorsizeof(QsCopy);
+        valuations.DeviceMemory += vectorsizeof(alphas);
+        valuations.DeviceMemory += vectorsizeof(result);
+        runtime.DeviceMemory = valuations.DeviceMemory;
 
         if (IsTest)
         {
-            std::cout << "Running pricing for " << options.N << 
+            std::cout << "Running " << valuations.ValuationCount << 
             #ifdef USE_DOUBLE
             " double"
             #else
             " float"
             #endif
-            << " options with block size " << BlockSize << std::endl;
+            << " valuations with block size " << BlockSize << std::endl;
             std::cout << "Qs count " << totalQsCount << ", alphas count " << totalAlphasCount << std::endl;
-            std::cout << "Global memory size " << options.DeviceMemory / (1024.0 * 1024.0) << " MB" << std::endl;
+            std::cout << "Global memory size " << valuations.DeviceMemory / (1024.0 * 1024.0) << " MB" << std::endl;
 
             cudaDeviceSynchronize();
             size_t memoryFree, memoryTotal;
@@ -280,14 +395,18 @@ protected:
             std::cout << "Current GPU memory usage " << (memoryTotal - memoryFree) / (1024.0 * 1024.0) << " MB out of " << memoryTotal / (1024.0 * 1024.0) << " MB " << std::endl;
         }
 
-        values.res = thrust::raw_pointer_cast(result.data());
+        values.ratesAll = thrust::raw_pointer_cast(rates.data());
+        values.pusAll = thrust::raw_pointer_cast(pus.data());
+        values.pmsAll = thrust::raw_pointer_cast(pms.data());
+        values.pdsAll = thrust::raw_pointer_cast(pds.data());
         values.QsAll = thrust::raw_pointer_cast(Qs.data());
         values.QsCopyAll = thrust::raw_pointer_cast(QsCopy.data());
         values.alphasAll = thrust::raw_pointer_cast(alphas.data());
+        values.res = thrust::raw_pointer_cast(result.data());
         KernelArgsT kernelArgs(values);
 
         auto time_begin_kernel = std::chrono::steady_clock::now();
-        kernelOneOptionPerThread<<<blockCount, BlockSize>>>(options.KernelOptions, kernelArgs);
+        kernelOneOptionPerThread<<<blockCount, BlockSize>>>(valuations.KernelValuations, kernelArgs);
         cudaDeviceSynchronize();
         auto time_end_kernel = std::chrono::steady_clock::now();
         runtime.KernelRuntime = std::chrono::duration_cast<std::chrono::microseconds>(time_end_kernel - time_begin_kernel).count();
@@ -300,7 +419,7 @@ protected:
         }
 
         // Sort result
-        options.sortResult(result);
+        valuations.sortResult(result);
 
         // Stop timing
         auto timeEnd = std::chrono::steady_clock::now();
@@ -319,28 +438,37 @@ protected:
 public:
     CudaRuntime runtime;
     
-    void run(const Options &options, const Yield &yield, std::vector<real> &results, 
-        const int blockSize = -1, const SortType sortType = SortType::NONE, const bool isTest = false)
+    void run(
+        const Valuations &valuations,
+        std::vector<real> &results,
+        const int blockSize = -1,
+        const SortType sortType = SortType::NONE,
+        const bool isTest = false)
     {
-        CudaOptions cudaOptions(options, yield);
+        CudaValuations cudaValuations(valuations);
 
         // Start timing when input is copied to device
         cudaDeviceSynchronize();
         auto timeBegin = std::chrono::steady_clock::now();
 
-        cudaOptions.initialize();
-        run(cudaOptions, results, timeBegin, blockSize, sortType, isTest);
+        cudaValuations.initialize();
+        run(cudaValuations, results, timeBegin, blockSize, sortType, isTest);
     }
 
-    void run(CudaOptions &cudaOptions, std::vector<real> &results, const std::chrono::time_point<std::chrono::steady_clock> timeBegin, 
-        const int blockSize = -1, const SortType sortType = SortType::NONE, const bool isTest = false)
+    void run(
+        CudaValuations &cudaValuations,
+        std::vector<real> &results,
+        const std::chrono::time_point<std::chrono::steady_clock> timeBegin,
+        const int blockSize = -1,
+        const SortType sortType = SortType::NONE,
+        const bool isTest = false)
     {
         TimeBegin = timeBegin;
         IsTest = isTest;
         BlockSize = blockSize > 0 ? blockSize : DEFAULT_BLOCK_SIZE;
 
-        cudaOptions.sortOptions(sortType, isTest);
-        runPreprocessing(cudaOptions, results);
+        cudaValuations.sortValuations(sortType, isTest);
+        runPreprocessing(cudaValuations, results);
     }
 
 };

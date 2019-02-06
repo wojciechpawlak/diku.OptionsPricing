@@ -6,7 +6,7 @@
 
 #include "getoptpp/getopt_pp_standalone.h"
 
-#include "OptionConstants.hpp"
+#include "ValuationConstants.hpp"
 
 using namespace GetOpt;
 
@@ -15,8 +15,7 @@ namespace trinom
 
 struct Args
 {
-    std::string options;
-    std::string yield;
+    std::string valuations;
     std::vector<SortType> sorts;
     std::vector<int> blockSizes;
     std::vector<int> versions;
@@ -29,22 +28,21 @@ struct Args
     Args(int argc, char *argv[])
     {
         GetOpt_pp cmd(argc, argv);
-        std::vector<std::string> sortOpts;
+        std::vector<std::string> sortVals;
 
         // Defaults for single arguments
         runs = 0;
         device = 0;
 
-        cmd >> GetOpt::Option('o', "options", options);
-        cmd >> GetOpt::Option('y', "yield", yield);
-        cmd >> GetOpt::Option('s', "sort", sortOpts);
+        cmd >> GetOpt::Option('o', "options", valuations);
+        cmd >> GetOpt::Option('s', "sort", sortVals);
         cmd >> GetOpt::Option('v', "version", versions);
         cmd >> GetOpt::Option('r', "runs", runs);
         cmd >> GetOpt::Option('b', "block", blockSizes);
         cmd >> GetOpt::Option('d', "device", device);
         cmd >> GetOpt::OptionPresent('t', "test", test);
 
-        for (auto &sort : sortOpts)
+        for (auto &sort : sortVals)
         {
             if (sort.length() == 1)
             {

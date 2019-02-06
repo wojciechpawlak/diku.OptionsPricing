@@ -7,45 +7,45 @@
 using namespace std;
 using namespace trinom;
 
-cuda::CudaRuntime run(const Options &options, const Yield &yield, vector<real> &results, 
+cuda::CudaRuntime run(const Valuations &valuations, vector<real> &results,
     const int version, const int blockSize, const SortType sortType, const bool isTest)
 {
     switch (version)
     {
-        case 1:
-        {
-            cuda::option::KernelRunNaive kernelRun;
-            kernelRun.run(options, yield, results, blockSize, sortType, isTest);
-            return kernelRun.runtime;
-        }
-        case 2:
-        {
-            cuda::option::KernelRunCoalesced kernelRun;
-            kernelRun.run(options, yield, results, blockSize, sortType, isTest);
-            return kernelRun.runtime;
-        }
-        case 3:
-        {
-            cuda::option::KernelRunCoalescedGranular kernelRun(blockSize);  // block-level padding granularity
-            kernelRun.run(options, yield, results, blockSize, sortType, isTest);
-            return kernelRun.runtime;
-        }
-        case 4:
-        {
-            cuda::option::KernelRunCoalescedGranular kernelRun(32);         // warp-level padding granularity
-            kernelRun.run(options, yield, results, blockSize, sortType, isTest);
-            return kernelRun.runtime;
-        }
+    case 1:
+    {
+        cuda::option::KernelRunNaive kernelRun;
+        kernelRun.run(valuations, results, blockSize, sortType, isTest);
+        return kernelRun.runtime;
+    }
+    case 2:
+    {
+        cuda::option::KernelRunCoalesced kernelRun;
+        kernelRun.run(valuations, results, blockSize, sortType, isTest);
+        return kernelRun.runtime;
+    }
+    case 3:
+    {
+        cuda::option::KernelRunCoalescedGranular kernelRun(blockSize);  // block-level padding granularity
+        kernelRun.run(valuations, results, blockSize, sortType, isTest);
+        return kernelRun.runtime;
+    }
+    case 4:
+    {
+        cuda::option::KernelRunCoalescedGranular kernelRun(32);         // warp-level padding granularity
+        kernelRun.run(valuations, results, blockSize, sortType, isTest);
+        return kernelRun.runtime;
+    }
     }
     return cuda::CudaRuntime();
 }
 
-void computeOptions(const Options &options, const Yield &yield, const int version, 
-const int blockSize, const SortType sortType, const int runs, const bool isTest)
+void computeValuations(const Valuations &valuations, const int version,
+    const int blockSize, const SortType sortType, const int runs, const bool isTest)
 {
     if (isTest)
     {
-        cout << "Cuda one option per thread version " << version << endl;
+        cout << "Cuda one valuation per thread version " << version << endl;
     }
 
     if (runs > 0)
@@ -58,8 +58,8 @@ const int blockSize, const SortType sortType, const int runs, const bool isTest)
         for (auto i = 0; i < runs; ++i)
         {
             vector<real> results;
-            results.resize(options.N);
-            auto runtime = run(options, yield, results, version, blockSize, sortType, isTest);
+            results.resize(valuations.ValuationCount);
+            auto runtime = run(valuations, results, version, blockSize, sortType, isTest);
             if (runtime < best)
             {
                 best = runtime;
@@ -77,9 +77,9 @@ const int blockSize, const SortType sortType, const int runs, const bool isTest)
     else
     {
         vector<real> results;
-        results.resize(options.N);
-        run(options, yield, results, version, blockSize, sortType, isTest);
-        
+        results.resize(valuations.ValuationCount);
+        run(valuations, results, version, blockSize, sortType, isTest);
+
         if (!isTest)
         {
             Arrays::write_array(cout, results);
@@ -93,12 +93,11 @@ int main(int argc, char *argv[])
 
     if (args.test)
     {
-        cout << "Loading options " << args.options << ", yield " << args.yield << endl;
+        cout << "Loading valuations " << args.valuations << endl;
     }
 
-    // Read options and yield curve.
-    Options options(args.options);
-    Yield yield(args.yield);
+    // Read valuations and yield curve.
+    Valuations valuations(args.valuations);
 
     // Initialize cuda device.
     cudaSetDevice(args.device);
@@ -110,7 +109,7 @@ int main(int argc, char *argv[])
         {
             for (auto &sortType : args.sorts)
             {
-                computeOptions(options, yield, version, blockSize, sortType, args.runs, args.test);
+                computeValuations(valuations, version, blockSize, sortType, args.runs, args.test);
             }
         }
     }

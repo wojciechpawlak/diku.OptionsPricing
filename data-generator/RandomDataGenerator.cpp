@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "../common/getoptpp/getopt_pp_standalone.h"
-#include "../common/Options.hpp"
+#include "../common/Valuations.hpp"
 #include "../common/Real.hpp"
 
 using namespace std;
@@ -69,17 +69,17 @@ real getRRByWidthRange(int a, int b)
     return reversionRates.at(index);
 }
 
-void addOption(vector<RandOption> &options, const RandOption o, long &currentNumOptions)
+void addOption(vector<RandOption> &valuations, const RandOption o, long &currentNumOptions)
 {
-    options.push_back(o);
+    valuations.push_back(o);
     currentNumOptions++;
 }
 
 int getNumSkewed(const int x, const RandOption y) { return y.Skewed ? x + 1 : x; }
 
-int getNumSkewedOptions(vector<RandOption> &options)
+int getNumSkewedOptions(vector<RandOption> &valuations)
 {
-    return accumulate(options.begin(), options.end(), 0, getNumSkewed);
+    return accumulate(valuations.begin(), valuations.end(), 0, getNumSkewed);
 }
 
 void writeOptionsToFile(vector<RandOption> &randOptions,
@@ -95,38 +95,38 @@ void writeOptionsToFile(vector<RandOption> &randOptions,
     auto rng = default_random_engine{};
     shuffle(begin(randOptions), end(randOptions), rng);
 
-    Options options(randOptions.size());
-    for (int i = 0; i < randOptions.size(); i++)
+    Valuations options(randvaluations.size());
+    for (int i = 0; i < randvaluations.size(); i++)
     {
-        options.Lengths.push_back(3);
-        options.Maturities.push_back(randOptions.at(i).Maturity);
-        options.StrikePrices.push_back(63);
-        options.TermUnits.push_back(365);
-        options.TermStepCounts.push_back(randOptions.at(i).TermStepCount);
-        options.ReversionRates.push_back(randOptions.at(i).ReversionRate);
-        options.Volatilities.push_back(0.01);
-        options.Types.push_back(OptionType::PUT);
+        valuations.Lengths.push_back(3);
+        valuations.Maturities.push_back(randvaluations.at(i).Maturity);
+        valuations.StrikePrices.push_back(63);
+        valuations.TermUnits.push_back(365);
+        valuations.TermSteps.push_back(randvaluations.at(i).TermStepCount);
+        valuations.MeanReversionRates.push_back(randvaluations.at(i).ReversionRate);
+        valuations.Volatilities.push_back(0.01);
+        valuations.OptionTypes.push_back(OptionType::PUT);
     }
 
-    options.writeToFile(dataFile);
+    valuations.writeToFile(dataFile);
 }
 
-void distribute_0(vector<RandOption> &options, const long numOptions)
+void distribute_0(vector<RandOption> &valuations, const long numOptions)
 {
     long currentNumOptions = 0;
 
     while (currentNumOptions < numOptions)
     {
         RandOption o(9, 12, 0.1, false);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     string filename = "0_UNIFORM";
-    writeOptionsToFile(options, filename, 0, numOptions, 0, currentNumOptions, 0);
+    writeOptionsToFile(valuations, filename, 0, numOptions, 0, currentNumOptions, 0);
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_1(vector<RandOption> &options, const long numOptions)
+void distribute_1(vector<RandOption> &valuations, const long numOptions)
 {
     long currentNumOptions = 0;
 
@@ -135,15 +135,15 @@ void distribute_1(vector<RandOption> &options, const long numOptions)
         int maturity = randIntInRange(1, 100);
         real reversionRate = getRRByWidthRange(7, 511);
         RandOption o(maturity, 12, reversionRate, false);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     string filename = "1_RAND";
-    writeOptionsToFile(options, filename, 1, numOptions, 0, currentNumOptions, 0);
+    writeOptionsToFile(valuations, filename, 1, numOptions, 0, currentNumOptions, 0);
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_2(vector<RandOption> &options, const long numOptions)
+void distribute_2(vector<RandOption> &valuations, const long numOptions)
 {
     long currentNumOptions = 0;
 
@@ -151,15 +151,15 @@ void distribute_2(vector<RandOption> &options, const long numOptions)
     {
         real reversionRate = getRRByWidthRange(7, 511);
         RandOption o(9, 12, reversionRate, false);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     string filename = "2_RANDCONSTHEIGHT";
-    writeOptionsToFile(options, filename, 2, numOptions, 0, currentNumOptions, 0);
+    writeOptionsToFile(valuations, filename, 2, numOptions, 0, currentNumOptions, 0);
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_3(vector<RandOption> &options, const long numOptions)
+void distribute_3(vector<RandOption> &valuations, const long numOptions)
 {
     long currentNumOptions = 0;
 
@@ -167,14 +167,14 @@ void distribute_3(vector<RandOption> &options, const long numOptions)
     {
         int maturity = randIntInRange(1, 100);
         RandOption o(maturity, 12, 0.1, false);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
     string filename = "3_RANDCONSTWIDTH";
-    writeOptionsToFile(options, filename, 3, numOptions, 0, currentNumOptions, 0);
+    writeOptionsToFile(valuations, filename, 3, numOptions, 0, currentNumOptions, 0);
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_4(vector<RandOption> &options, const long numOptions, const int skewPerc)
+void distribute_4(vector<RandOption> &valuations, const long numOptions, const int skewPerc)
 {
     long currentNumOptions = 0;
 
@@ -183,7 +183,7 @@ void distribute_4(vector<RandOption> &options, const long numOptions, const int 
         int maturity = randIntInRange(70, 100);
         real reversionRate = getRRByWidthRange(411, 511);
         RandOption o(maturity, 12, reversionRate, true);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     const long currentNumSkewOptions = currentNumOptions;
@@ -193,15 +193,15 @@ void distribute_4(vector<RandOption> &options, const long numOptions, const int 
         int maturity = randIntInRange(1, 30);
         real reversionRate = getRRByWidthRange(7, 107);
         RandOption o(maturity, 12, reversionRate, false);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     string filename = "4_SKEWED";
-    writeOptionsToFile(options, filename, 4, numOptions, skewPerc, currentNumOptions, currentNumSkewOptions);
+    writeOptionsToFile(valuations, filename, 4, numOptions, skewPerc, currentNumOptions, currentNumSkewOptions);
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_5(vector<RandOption> &options, const long numOptions, const int skewPerc)
+void distribute_5(vector<RandOption> &valuations, const long numOptions, const int skewPerc)
 {
     long currentNumOptions = 0;
 
@@ -210,7 +210,7 @@ void distribute_5(vector<RandOption> &options, const long numOptions, const int 
         // int maturity = randIntInRange(1, 100);
         real reversionRate_skew = getRRByWidthRange(7, 107);
         RandOption o(100, 12, reversionRate_skew, true);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     const long currentNumSkewOptions = currentNumOptions;
@@ -220,15 +220,15 @@ void distribute_5(vector<RandOption> &options, const long numOptions, const int 
         int maturity = randIntInRange(1, 30);
         real reversionRate = getRRByWidthRange(7, 107);
         RandOption o(maturity, 12, reversionRate, false);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     string filename = "5_SKEWEDCONSTHEIGHT";
-    writeOptionsToFile(options, filename, 5, numOptions, skewPerc, currentNumOptions, currentNumSkewOptions);
+    writeOptionsToFile(valuations, filename, 5, numOptions, skewPerc, currentNumOptions, currentNumSkewOptions);
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_6(vector<RandOption> &options, const long numOptions, const int skewPerc)
+void distribute_6(vector<RandOption> &valuations, const long numOptions, const int skewPerc)
 {
     long currentNumOptions = 0;
 
@@ -238,7 +238,7 @@ void distribute_6(vector<RandOption> &options, const long numOptions, const int 
         int maturity = randIntInRange(1, 30);
 
         RandOption o(maturity, 12, reversionRate_skew, true);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     const long currentNumSkewOptions = currentNumOptions;
@@ -248,11 +248,11 @@ void distribute_6(vector<RandOption> &options, const long numOptions, const int 
         int maturity = randIntInRange(1, 30);
         real reversionRate = getRRByWidthRange(7, 107);
         RandOption o(maturity, 12, reversionRate, false);
-        addOption(options, o, currentNumOptions);
+        addOption(valuations, o, currentNumOptions);
     }
 
     string filename = "6_SKEWEDCONSTWIDTH";
-    writeOptionsToFile(options, filename, 6, numOptions, skewPerc, currentNumOptions, currentNumSkewOptions);
+    writeOptionsToFile(valuations, filename, 6, numOptions, skewPerc, currentNumOptions, currentNumSkewOptions);
     cout << "finished writing to " << filename << endl;
 }
 

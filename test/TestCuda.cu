@@ -11,89 +11,87 @@
 using namespace std;
 using namespace trinom;
 
-#define YIELD_CURVE_PATH "../data/yield.in" 
-
 TEST_CASE("Book options")
 {
-    Yield yield(YIELD_CURVE_PATH);
+    YieldCurves yield(YIELD_CURVE_PATH);
     
-    Options options(100);
-    for (int i = 1; i <= options.N; ++i)
+    Valuations options(100);
+    for (int i = 1; i <= valuations.ValuationCount; ++i)
     {
-        options.Lengths.push_back(3);
-        options.Maturities.push_back(9);
-        options.StrikePrices.push_back(63);
-        options.TermUnits.push_back(365);
-        options.TermStepCounts.push_back(i);
-        options.ReversionRates.push_back(0.1);
-        options.Volatilities.push_back(0.01);
-        options.Types.push_back(OptionType::PUT);
+        valuations.Lengths.push_back(3);
+        valuations.Maturities.push_back(9);
+        valuations.StrikePrices.push_back(63);
+        valuations.TermUnits.push_back(365);
+        valuations.TermSteps.push_back(i);
+        valuations.ReversionRates.push_back(0.1);
+        valuations.Volatilities.push_back(0.01);
+        valuations.OptionTypes.push_back(OptionType::PUT);
     }
     
     vector<real> seqResults, cudaResults;
-    seqResults.resize(options.N);
-    seq::computeOptions(options, yield, seqResults);
+    seqResults.resize(valuations.ValuationCount);
+    seq::computeOptions(valuations, seqResults);
 
     SECTION("CUDA option version 1")
     {
         vector<real> results;
-        results.resize(options.N);
+        results.resize(valuations.ValuationCount);
         cuda::option::KernelRunNaive kernelRun;
-        kernelRun.run(options, yield, results, 64);
+        kernelRun.run(valuations, results, 64);
         compareVectors(results, seqResults);
     }
 
     SECTION("CUDA option version 2")
     {
         vector<real> results;
-        results.resize(options.N);
+        results.resize(valuations.ValuationCount);
         cuda::option::KernelRunCoalesced kernelRun;
-        kernelRun.run(options, yield, results, 64);
+        kernelRun.run(valuations, results, 64);
         compareVectors(results, seqResults);
     }
 
     SECTION("CUDA option version 3")
     {
         vector<real> results;
-        results.resize(options.N);
+        results.resize(valuations.ValuationCount);
         cuda::option::KernelRunCoalescedGranular kernelRun(64);
-        kernelRun.run(options, yield, results, 64);
+        kernelRun.run(valuations, results, 64);
         compareVectors(results, seqResults);
     }
 
     SECTION("CUDA option version 4")
     {
         vector<real> results;
-        results.resize(options.N);
+        results.resize(valuations.ValuationCount);
         cuda::option::KernelRunCoalescedGranular kernelRun(32);
-        kernelRun.run(options, yield, results, 64);
+        kernelRun.run(valuations, results, 64);
         compareVectors(results, seqResults);
     }
 
     SECTION("CUDA multi version 1")
     {
         vector<real> results;
-        results.resize(options.N);
+        results.resize(valuations.ValuationCount);
         cuda::multi::KernelRunNaive kernelRun;
-        kernelRun.run(options, yield, results, 512);
+        kernelRun.run(valuations, results, 512);
         compareVectors(results, seqResults);
     }
 
     SECTION("CUDA multi version 2")
     {
         vector<real> results;
-        results.resize(options.N);
+        results.resize(valuations.ValuationCount);
         cuda::multi::KernelRunCoalesced kernelRun;
-        kernelRun.run(options, yield, results, 512);
+        kernelRun.run(valuations, results, 512);
         compareVectors(results, seqResults);
     }
 
     SECTION("CUDA multi version 3")
     {
         vector<real> results;
-        results.resize(options.N);
+        results.resize(valuations.ValuationCount);
         cuda::multi::KernelRunCoalescedBlock kernelRun;
-        kernelRun.run(options, yield, results, 512);
+        kernelRun.run(valuations, results, 512);
         compareVectors(results, seqResults);
     }
 }

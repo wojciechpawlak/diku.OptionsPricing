@@ -21,9 +21,8 @@
     <ClInclude Include="Arrays.hpp" />
     <ClInclude Include="CudaInterop.h" />
     <ClInclude Include="Domain.hpp" />
-    <ClInclude Include="OptionConstants.hpp" />
-    <ClInclude Include="Options.hpp" />
     <ClInclude Include="Real.hpp" />
-    <ClInclude Include="Yield.hpp" />
+    <ClInclude Include="Valuations.hpp" />
+    <ClInclude Include="ValuationConstants.hpp" />
   </ItemGroup>
 </Project>

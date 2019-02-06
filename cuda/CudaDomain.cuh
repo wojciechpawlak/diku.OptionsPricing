@@ -6,8 +6,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/transform_scan.h>
 
-#include "../common/Options.hpp"
-#include "../common/OptionConstants.hpp"
+#include "../common/Valuations.hpp"
+#include "../common/ValuationConstants.hpp"
 #include "../common/Domain.hpp"
 #include "../cuda/CudaErrors.cuh"
 
@@ -16,25 +16,39 @@ using namespace trinom;
 namespace cuda
 {
 
-struct KernelOptions
+struct KernelValuations
 {
-    int N;
-    int YieldSize;
+    int ValuationCount;
+    int YieldCurveCount;
 
-    real *StrikePrices;
-    real *Maturities;
-    real *Lengths;
+    // Model parameters
     uint16_t *TermUnits;
-    uint16_t *TermStepCounts;
-    real *ReversionRates;
+    uint16_t *TermSteps;
+    real *MeanReversionRates;
     real *Volatilities;
-    OptionType *Types;
-
-    real *YieldPrices;
-    int32_t *YieldTimeSteps;
-
+    // Bond parameters
+    real *Maturities;
+    uint16_t *Cashflows;
+    uint16_t *CashflowSteps;
+    real *Repayments;
+    real *Coupons;
+    real *Spreads;
+    // Option parameters
+    OptionType *OptionTypes;
+    real *StrikePrices;
+    uint16_t *FirstExerciseSteps;
+    uint16_t *LastExerciseSteps;
+    uint16_t *ExerciseStepFrequencies;
+    // Yield Curve parameters
+    uint16_t *YieldCurveIndices;
+    uint16_t *YieldCurveTerms;
+    real *YieldCurveRates;
+    uint16_t *YieldCurveTimeSteps;
+    // Kernel parameters
     int32_t *Widths;
     int32_t *Heights;
+    int32_t *CashflowIndices;
+    int32_t *YieldCurveTermIndices;
 };
 
 struct compute_width_height
@@ -81,102 +95,174 @@ size_t vectorsizeof(const typename thrust::device_vector<T>& vec)
     return sizeof(T) * vec.size();
 }
 
-class CudaOptions
+class CudaValuations
 {
 private:
-    thrust::device_vector<real> StrikePrices;
-    thrust::device_vector<real> Maturities;
-    thrust::device_vector<real> Lengths;
+    // Model parameters
     thrust::device_vector<uint16_t> TermUnits;
-    thrust::device_vector<uint16_t> TermStepCounts;
-    thrust::device_vector<real> ReversionRates;
+    thrust::device_vector<uint16_t> TermSteps;
+    thrust::device_vector<real> MeanReversionRates;
     thrust::device_vector<real> Volatilities;
-    thrust::device_vector<OptionType> Types;
-
-    thrust::device_vector<real> YieldPrices;
-    thrust::device_vector<int32_t> YieldTimeSteps;
+    // Bond parameters
+    thrust::device_vector<real> Maturities;
+    thrust::device_vector<uint16_t> Cashflows; // Not used in kernels
+    thrust::device_vector<uint16_t> CashflowSteps;
+    thrust::device_vector<real> Repayments;
+    thrust::device_vector<real> Coupons;
+    thrust::device_vector<real> Spreads;
+    // Option parameters
+    thrust::device_vector<OptionType> OptionTypes;
+    thrust::device_vector<real> StrikePrices;
+    thrust::device_vector<uint16_t> FirstExerciseSteps;
+    thrust::device_vector<uint16_t> LastExerciseSteps;
+    thrust::device_vector<uint16_t> ExerciseStepFrequencies;
+    // Yield Curve parameters
+    thrust::device_vector<uint16_t> YieldCurveIndices;
+    thrust::device_vector<uint16_t> YieldCurveTerms;
+    thrust::device_vector<real> YieldCurveRates;
+    thrust::device_vector<uint16_t> YieldCurveTimeSteps;
 
 public:
-    const int N;
-    const int YieldSize;
-    KernelOptions KernelOptions;
+    const int ValuationCount;
+    const int YieldCurveCount;
+    KernelValuations KernelValuations;
 
     thrust::device_vector<int32_t> Widths;
     thrust::device_vector<int32_t> Heights;
-    thrust::device_vector<int32_t> Indices;
+
+    thrust::device_vector<int32_t> CashflowIndices;
+    thrust::device_vector<int32_t> YieldCurveTermIndices;
+    thrust::device_vector<int32_t> ValuationIndices;
 
     long DeviceMemory = 0;
 
-    CudaOptions(const Options &options, const Yield &yield) : 
-        
-        StrikePrices(options.StrikePrices.begin(), options.StrikePrices.end()),
-        Maturities(options.Maturities.begin(), options.Maturities.end()),
-        Lengths(options.Lengths.begin(), options.Lengths.end()),
-        TermUnits(options.TermUnits.begin(), options.TermUnits.end()),
-        TermStepCounts(options.TermStepCounts.begin(), options.TermStepCounts.end()),
-        ReversionRates(options.ReversionRates.begin(), options.ReversionRates.end()),
-        Volatilities(options.Volatilities.begin(), options.Volatilities.end()),
-        Types(options.Types.begin(), options.Types.end()),
-        YieldPrices(yield.Prices.begin(), yield.Prices.end()),
-        YieldTimeSteps(yield.TimeSteps.begin(), yield.TimeSteps.end()),
-        N(options.N),
-        YieldSize(yield.N)
+    CudaValuations(const Valuations &valuations) : 
+        TermUnits(valuations.TermUnits.begin(), valuations.TermUnits.end()),
+        TermSteps(valuations.TermSteps.begin(), valuations.TermSteps.end()),
+        MeanReversionRates(valuations.MeanReversionRates.begin(), valuations.MeanReversionRates.end()),
+        Volatilities(valuations.Volatilities.begin(), valuations.Volatilities.end()),
+        Maturities(valuations.Maturities.begin(), valuations.Maturities.end()),
+        Cashflows(valuations.Cashflows.begin(), valuations.Cashflows.end()),
+        CashflowSteps(valuations.CashflowSteps.begin(), valuations.CashflowSteps.end()),
+        Repayments(valuations.Repayments.begin(), valuations.Repayments.end()),
+        Coupons(valuations.Coupons.begin(), valuations.Coupons.end()),
+        Spreads(valuations.Spreads.begin(), valuations.Spreads.end()),
+        OptionTypes(valuations.OptionTypes.begin(), valuations.OptionTypes.end()),
+        StrikePrices(valuations.StrikePrices.begin(), valuations.StrikePrices.end()),
+        FirstExerciseSteps(valuations.FirstExerciseSteps.begin(), valuations.FirstExerciseSteps.end()),
+        LastExerciseSteps(valuations.LastExerciseSteps.begin(), valuations.LastExerciseSteps.end()),
+        ExerciseStepFrequencies(valuations.ExerciseStepFrequencies.begin(), valuations.ExerciseStepFrequencies.end()),
+        YieldCurveIndices(valuations.YieldCurveIndices.begin(), valuations.YieldCurveIndices.end()),
+        YieldCurveTerms(valuations.YieldCurveTerms.begin(), valuations.YieldCurveTerms.end()),
+        YieldCurveRates(valuations.YieldCurveRates.begin(), valuations.YieldCurveRates.end()),
+        YieldCurveTimeSteps(valuations.YieldCurveTimeSteps.begin(), valuations.YieldCurveTimeSteps.end()),
+        ValuationCount(valuations.ValuationCount),
+        YieldCurveCount(valuations.YieldCurveCount)
     {
 
     }
 
     void initialize()
     {
-        Widths.resize(N);
-        Heights.resize(N);
+        Widths.resize(ValuationCount);
+        Heights.resize(ValuationCount);
+        CashflowIndices.resize(ValuationCount);
+        YieldCurveTermIndices.resize(ValuationCount);
 
-        KernelOptions.N = N;
-        KernelOptions.YieldSize = YieldSize, 
-        KernelOptions.StrikePrices = thrust::raw_pointer_cast(StrikePrices.data());
-        KernelOptions.Maturities = thrust::raw_pointer_cast(Maturities.data());
-        KernelOptions.Lengths = thrust::raw_pointer_cast(Lengths.data());
-        KernelOptions.TermUnits = thrust::raw_pointer_cast(TermUnits.data());
-        KernelOptions.TermStepCounts = thrust::raw_pointer_cast(TermStepCounts.data());
-        KernelOptions.ReversionRates = thrust::raw_pointer_cast(ReversionRates.data());
-        KernelOptions.Volatilities = thrust::raw_pointer_cast(Volatilities.data());
-        KernelOptions.Types = thrust::raw_pointer_cast(Types.data());
-        KernelOptions.YieldPrices = thrust::raw_pointer_cast(YieldPrices.data());
-        KernelOptions.YieldTimeSteps = thrust::raw_pointer_cast(YieldTimeSteps.data());
-        KernelOptions.Widths = thrust::raw_pointer_cast(Widths.data());
-        KernelOptions.Heights = thrust::raw_pointer_cast(Heights.data());
+        KernelValuations.ValuationCount = ValuationCount;
+        KernelValuations.YieldCurveCount = YieldCurveCount,
 
-        DeviceMemory += vectorsizeof(StrikePrices);
-        DeviceMemory += vectorsizeof(Maturities);
-        DeviceMemory += vectorsizeof(Lengths);
+        KernelValuations.TermUnits = thrust::raw_pointer_cast(TermUnits.data());
+        KernelValuations.TermSteps = thrust::raw_pointer_cast(TermSteps.data());
+        KernelValuations.MeanReversionRates = thrust::raw_pointer_cast(MeanReversionRates.data());
+        KernelValuations.Volatilities = thrust::raw_pointer_cast(Volatilities.data());
+
+        KernelValuations.Maturities = thrust::raw_pointer_cast(Maturities.data());
+        KernelValuations.Cashflows = thrust::raw_pointer_cast(Cashflows.data());
+        KernelValuations.CashflowSteps = thrust::raw_pointer_cast(CashflowSteps.data());
+        KernelValuations.Repayments = thrust::raw_pointer_cast(Repayments.data());
+        KernelValuations.Coupons = thrust::raw_pointer_cast(Coupons.data());
+        KernelValuations.Spreads = thrust::raw_pointer_cast(Spreads.data());
+
+        KernelValuations.OptionTypes = thrust::raw_pointer_cast(OptionTypes.data());
+        KernelValuations.StrikePrices = thrust::raw_pointer_cast(StrikePrices.data());
+        KernelValuations.FirstExerciseSteps = thrust::raw_pointer_cast(FirstExerciseSteps.data());
+        KernelValuations.LastExerciseSteps = thrust::raw_pointer_cast(LastExerciseSteps.data());
+        KernelValuations.ExerciseStepFrequencies = thrust::raw_pointer_cast(ExerciseStepFrequencies.data());
+
+        KernelValuations.YieldCurveIndices = thrust::raw_pointer_cast(YieldCurveIndices.data());
+        KernelValuations.YieldCurveTerms = thrust::raw_pointer_cast(YieldCurveTerms.data());
+        KernelValuations.YieldCurveRates = thrust::raw_pointer_cast(YieldCurveRates.data());
+        KernelValuations.YieldCurveTimeSteps = thrust::raw_pointer_cast(YieldCurveTimeSteps.data());
+
+        KernelValuations.Widths = thrust::raw_pointer_cast(Widths.data());
+        KernelValuations.Heights = thrust::raw_pointer_cast(Heights.data());
+        KernelValuations.CashflowIndices = thrust::raw_pointer_cast(CashflowIndices.data());
+        KernelValuations.YieldCurveTermIndices = thrust::raw_pointer_cast(YieldCurveTermIndices.data());
+
         DeviceMemory += vectorsizeof(TermUnits);
-        DeviceMemory += vectorsizeof(TermStepCounts);
-        DeviceMemory += vectorsizeof(ReversionRates);
+        DeviceMemory += vectorsizeof(TermSteps);
+        DeviceMemory += vectorsizeof(MeanReversionRates);
         DeviceMemory += vectorsizeof(Volatilities);
-        DeviceMemory += vectorsizeof(Types);
-        DeviceMemory += vectorsizeof(YieldPrices);
-        DeviceMemory += vectorsizeof(YieldTimeSteps);
+
+        DeviceMemory += vectorsizeof(Maturities);
+        DeviceMemory += vectorsizeof(Cashflows);
+        DeviceMemory += vectorsizeof(CashflowSteps);
+        DeviceMemory += vectorsizeof(Coupons);
+        DeviceMemory += vectorsizeof(Spreads);
+        
+        DeviceMemory += vectorsizeof(OptionTypes);
+        DeviceMemory += vectorsizeof(StrikePrices);
+        DeviceMemory += vectorsizeof(FirstExerciseSteps);
+        DeviceMemory += vectorsizeof(LastExerciseSteps);
+        DeviceMemory += vectorsizeof(ExerciseStepFrequencies);
+        
+        DeviceMemory += vectorsizeof(YieldCurveIndices);
+        DeviceMemory += vectorsizeof(YieldCurveTerms);
+        DeviceMemory += vectorsizeof(YieldCurveRates);
+        DeviceMemory += vectorsizeof(YieldCurveTimeSteps);
+               
         DeviceMemory += vectorsizeof(Widths);
         DeviceMemory += vectorsizeof(Heights);
+        DeviceMemory += vectorsizeof(CashflowIndices);
+        DeviceMemory += vectorsizeof(YieldCurveTermIndices);
 
-        // Fill in widths and heights for all options.
-        thrust::for_each(thrust::make_zip_iterator(thrust::make_tuple(TermUnits.begin(), TermStepCounts.begin(), Maturities.begin(), ReversionRates.begin(), Widths.begin(), Heights.begin())),
-                     thrust::make_zip_iterator(thrust::make_tuple(TermUnits.end(), TermStepCounts.end(), Maturities.end(), ReversionRates.end(), Widths.end(), Heights.end())),
+        // Fill in widths and heights for all valuations.
+        thrust::for_each(thrust::make_zip_iterator(thrust::make_tuple(TermUnits.begin(), TermSteps.begin(), Maturities.begin(), MeanReversionRates.begin(), Widths.begin(), Heights.begin())),
+                     thrust::make_zip_iterator(thrust::make_tuple(TermUnits.end(), TermSteps.end(), Maturities.end(), MeanReversionRates.end(), Widths.end(), Heights.end())),
                      compute_width_height());
+
+        thrust::exclusive_scan(Cashflows.begin(), Cashflows.end(), CashflowIndices.begin());
+        thrust::exclusive_scan(YieldCurveTerms.begin(), YieldCurveTerms.end(), YieldCurveTermIndices.begin());
 
         cudaDeviceSynchronize();
     }
 
-    void sortOptions(const SortType sort, const bool isTest)
+    void sortValuations(const SortType sort, const bool isTest)
     {
         if (sort != SortType::NONE)
         {
             // Create indices
-            Indices = thrust::device_vector<int32_t>(N);
-            thrust::sequence(Indices.begin(), Indices.end());
-            DeviceMemory += vectorsizeof(Indices);
+            ValuationIndices = thrust::device_vector<int32_t>(ValuationCount);
+            thrust::sequence(ValuationIndices.begin(), ValuationIndices.end());
+            DeviceMemory += vectorsizeof(ValuationIndices);
 
-            auto optionBegin = thrust::make_zip_iterator(thrust::make_tuple(StrikePrices.begin(), Maturities.begin(), Lengths.begin(), TermUnits.begin(), 
-                TermStepCounts.begin(), ReversionRates.begin(), Volatilities.begin(), Types.begin(), Indices.begin()));
+            auto optionBegin = thrust::make_zip_iterator(thrust::make_tuple(
+                //TermUnits.begin(),
+                //TermSteps.begin(),
+                MeanReversionRates.begin(),
+                Volatilities.begin(),
+                Cashflows.begin(),
+                //Spreads.begin(),
+                //OptionTypes.begin(),
+                StrikePrices.begin(),
+                FirstExerciseSteps.begin(),
+                LastExerciseSteps.begin(),
+                ExerciseStepFrequencies.begin(),
+                YieldCurveIndices.begin(),
+                CashflowIndices.begin(),
+                ValuationIndices.begin()
+            ));
     
             auto keysBegin = (sort == SortType::WIDTH_ASC || sort == SortType::WIDTH_DESC) 
                 ? thrust::make_zip_iterator(thrust::make_tuple(Widths.begin(), Heights.begin()))
@@ -208,9 +294,9 @@ public:
     void sortResult(thrust::device_vector<real> &deviceResults)
     {
         // Sort result
-        if (!Indices.empty())
+        if (!ValuationIndices.empty())
         {
-            thrust::sort_by_key(Indices.begin(), Indices.end(), deviceResults.begin());
+            thrust::sort_by_key(ValuationIndices.begin(), ValuationIndices.end(), deviceResults.begin());
             cudaDeviceSynchronize();
         }
     }
@@ -221,30 +307,30 @@ struct CudaRuntime
     long KernelRuntime = std::numeric_limits<long>::max();
     long TotalRuntime = std::numeric_limits<long>::max();
     long DeviceMemory = 0;
-
 };
 
 bool operator <(const CudaRuntime& x, const CudaRuntime& y) {
     return std::tie(x.KernelRuntime, x.TotalRuntime) < std::tie(y.KernelRuntime, y.TotalRuntime);
 }
 
-__device__ void computeConstants(OptionConstants &c, const KernelOptions &options, const int idx)
+__device__ void computeConstants(ValuationConstants &c, const KernelValuations &valuations, const int idx)
 {
-    c.termUnit = options.TermUnits[idx];
-    auto T = options.Maturities[idx];
+    c.termUnit = valuations.TermUnits[idx];
+    auto T = valuations.Maturities[idx];
     const auto termUnitsInYearCount = ceil((real)year / c.termUnit);
-    const auto termStepCount = options.TermStepCounts[idx];
-    c.t = options.Lengths[idx];
+    const auto termStepCount = valuations.TermSteps[idx];
     c.n = termStepCount * termUnitsInYearCount * T;
     c.dt = termUnitsInYearCount / (real)termStepCount; // [years]
-    c.type = options.Types[idx];
+    c.type = valuations.OptionTypes[idx];
 
-    const auto a = options.ReversionRates[idx];
-    c.X = options.StrikePrices[idx];
-    const auto sigma = options.Volatilities[idx];
+    const auto a = valuations.MeanReversionRates[idx];
+    c.X = valuations.StrikePrices[idx];
+    const auto sigma = valuations.Volatilities[idx];
     const auto V = sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a);
     c.dr = sqrt(three * V);
     c.M = exp(-a * c.dt) - one;
+
+    c.expmdrdt = exp(-c.dr * c.dt);
 
     // simplified computations
     // c.dr = sigma * sqrt(three * c.dt);
@@ -252,6 +338,17 @@ __device__ void computeConstants(OptionConstants &c, const KernelOptions &option
 
     c.jmax = (int)(minus184 / c.M) + 1;
     c.width = 2 * c.jmax + 1;
+
+    c.firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
+    c.lastCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+
+    c.LastExerciseStep = valuations.LastExerciseSteps[idx];
+    c.FirstExerciseStep = valuations.FirstExerciseSteps[idx];
+    c.ExerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
+
+    c.firstYieldCurveRate = &valuations.YieldCurveRates[c.firstYCTermIdx];
+    c.firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[c.firstYCTermIdx];
+    c.yieldCurveTermCount = valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]];
 }
 
 }

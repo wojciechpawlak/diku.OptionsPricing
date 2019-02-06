@@ -3,7 +3,7 @@ DEBUG_OPTIONS = -G -DCUDA_ERROR_CHECK
 
 NVCC_FLAGS := $(ARCHS) --std=c++11 -m64 --expt-extended-lambda #--ptxas-options=-v
 GCC_FLAGS := -Xcompiler '-O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp'
-ARCHS := -gencode arch=compute_60,code=sm_60 \
+ARCHS := -gencode arch=compute_70,code=sm_70 \
 		-gencode arch=compute_35,code=sm_35
 
 SOURCES_CPP = CudaOptionMain.cu

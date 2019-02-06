@@ -12,8 +12,8 @@ using namespace trinom;
 void computeAllOptions(const Args &args)
 {
     // Read options from filename
-    Options options(args.options);
-    Yield yield(args.yield);
+    Valuations options(args.valuations);
+    YieldCurves yield(args.yield);
 
     if (args.test)
     {
@@ -30,10 +30,10 @@ void computeAllOptions(const Args &args)
         for (auto i = 0; i < args.runs; ++i)
         {
             vector<real> results;
-            results.resize(options.N);
+            results.resize(valuations.ValuationCount);
 
             auto time_begin = steady_clock::now();
-            seq::computeOptions(options, yield, results);
+            seq::computeOptions(valuations, results);
             auto time_end = steady_clock::now();
             auto runtime = duration_cast<microseconds>(time_end - time_begin).count();
             if (runtime < best)
@@ -53,10 +53,10 @@ void computeAllOptions(const Args &args)
     else
     {
         vector<real> results;
-        results.resize(options.N);
+        results.resize(valuations.ValuationCount);
 
         auto time_begin = steady_clock::now();
-        seq::computeOptions(options, yield, results);
+        seq::computeOptions(valuations, results);
         auto time_end = steady_clock::now();
         auto runtime = duration_cast<microseconds>(time_end - time_begin).count();
 
