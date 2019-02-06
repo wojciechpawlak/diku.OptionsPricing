@@ -40,9 +40,9 @@ struct ValuationConstants
     {
         termUnit = valuations.TermUnits.at(idx);
         const auto T = valuations.Maturities.at(idx);
-        const int termUnitsInYearCount = (int)lround((real)year / termUnit);
+        const auto termUnitsInYearCount = lround((real)year / termUnit);
         termStepCount = valuations.TermSteps.at(idx);
-        n = termStepCount * termUnitsInYearCount * T;
+        n = (int)lround((real)termStepCount * termUnitsInYearCount * T);
         dt = termUnitsInYearCount / (real)termStepCount; // [years]
         type = valuations.OptionTypes.at(idx);
 

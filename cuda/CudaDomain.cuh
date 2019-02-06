@@ -317,7 +317,7 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
 {
     c.termUnit = valuations.TermUnits[idx];
     auto T = valuations.Maturities[idx];
-    const auto termUnitsInYearCount = (int)lround((real)year / c.termUnit);
+    const auto termUnitsInYearCount = lround((real)year / c.termUnit);
     const auto termStepCount = valuations.TermSteps[idx];
     c.n = termStepCount * termUnitsInYearCount * T;
     c.dt = termUnitsInYearCount / (real)termStepCount; // [years]

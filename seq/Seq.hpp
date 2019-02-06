@@ -21,7 +21,7 @@ struct jvalue
  *  Sequential version that computes the bond tree until bond maturity
  *  and prices the option on maturity during backward propagation.
  **/
-real computeSingleOption(const ValuationConstants &c, const YieldCurves &yield)
+real computeSingleOption(const ValuationConstants &c)
 {
     // Precompute probabilities and rates for all js.
     auto jvalues = new jvalue[c.width];
@@ -54,9 +54,9 @@ real computeSingleOption(const ValuationConstants &c, const YieldCurves &yield)
     auto QsCopy = new real[c.width](); // QsCopy[j]
     Qs[c.jmax] = one;                  // Qs[0] = 1$
 
-    auto alphas = new real[c.n + 1]();                                                                  // alphas[i]
-    int lastIdx = 0;
-    alphas[0] = interpolateYieldAtTimeStep(c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.Count, &lastIdx); // initial dt-period interest rate
+    auto alphas = new real[c.n + 1](); // alphas[i]
+    int lastUsedYCTermIdx = 0;
+    alphas[0] = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx); // initial dt-period interest rate
     printf("0 %d alpha %f \n", 0, alphas[0]);
 
 
@@ -107,7 +107,7 @@ real computeSingleOption(const ValuationConstants &c, const YieldCurves &yield)
             alpha_val += QsCopy[jind] * exp(-jval.rate * c.dt);
         }
 
-        alphas[i + 1] = computeAlpha(alpha_val, i, c.dt, c.termUnit, yield.Prices.data(), yield.TimeSteps.data(), yield.Count, &lastIdx);
+        alphas[i + 1] = computeAlpha(alpha_val, i, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
         printf("2 %d alpha %f \n", i+1, alphas[i + 1]);
         // Switch Qs
         auto QsT = Qs;

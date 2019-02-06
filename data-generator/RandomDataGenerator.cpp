@@ -16,34 +16,62 @@
 using namespace std;
 using namespace trinom;
 
-struct RandOption
+struct RandValuation
 {
-    int Maturity;
-    int TermStepCount;
-    real ReversionRate;
+    // Model parameters
+    uint16_t TermUnit;
+    uint16_t TermStep;
+    real MeanReversionRate;
+    real Volatility;
+    // Bond parameters
+    real Maturity;
+    uint16_t CashflowStepCount;
+    std::vector<uint16_t> CashflowSteps;
+    std::vector<real> Repayments;
+    std::vector<real> Coupons;
+    real Spread;
+    // Option parameters
+    OptionType OptionType;
+    real StrikePrice;
+    uint16_t FirstExerciseStep;
+    uint16_t LastExerciseStep;
+    uint16_t ExerciseStepFrequency;
+
+    uint16_t YieldCurveIndex;
+
     int Width;
     int Height;
     bool Skewed;
 
-    RandOption(const int maturity, const int termStepCount, const real reversionRate, const bool skewed)
+    RandValuation(const int maturity, const int termStepCount, const real reversionRate, const bool skewed)
     {
+        TermUnit = 360;
+        TermStep = termStepCount;
         Maturity = maturity;
-        TermStepCount = termStepCount;
-        ReversionRate = reversionRate;
-        Skewed = skewed;
+        MeanReversionRate = reversionRate;
+
         computeWidth();
         computeHeight();
+        Skewed = skewed;
     }
 
     void computeWidth()
     {
-        Width = 2 * ((int)(minus184 / (exp(-ReversionRate * ((lround((real)year / 365)) / (real)TermStepCount)) - one)) + 1) + 1;
+        Width = 2 * ((int)(minus184 / (exp(-MeanReversionRate * (lround((real)year / TermUnit) / (real)TermStep)) - one)) + 1) + 1;
     }
 
     void computeHeight()
     {
-        Height = (TermStepCount * (lround((real)year / 365)) * Maturity) + 1;
+        Height = TermStep * lround((real)year / TermUnit) * Maturity + 1;
     }
+};
+
+struct RandYieldCurve
+{
+    // Yield Curve parameters
+    uint16_t YieldCurveTermCount;
+    std::vector<real> YieldCurveRates;
+    std::vector<uint16_t> YieldCurveTimeSteps;
 };
 
 int randIntInRange(int a, int b)
@@ -69,20 +97,20 @@ real getRRByWidthRange(int a, int b)
     return reversionRates.at(index);
 }
 
-void addOption(vector<RandOption> &valuations, const RandOption o, long &currentNumOptions)
+void addOption(vector<RandValuation> &valuations, const RandValuation o, long &currentNumOptions)
 {
     valuations.push_back(o);
     currentNumOptions++;
 }
 
-int getNumSkewed(const int x, const RandOption y) { return y.Skewed ? x + 1 : x; }
+int getNumSkewed(const int x, const RandValuation y) { return y.Skewed ? x + 1 : x; }
 
-int getNumSkewedOptions(vector<RandOption> &valuations)
+int getNumSkewedOptions(vector<RandValuation> &valuations)
 {
     return accumulate(valuations.begin(), valuations.end(), 0, getNumSkewed);
 }
 
-void writeOptionsToFile(vector<RandOption> &randOptions,
+void writeOptionsToFile(vector<RandValuation> &randValuations,
                         const string filename,
                         const int dataType,
                         const long numOptions,
@@ -93,31 +121,46 @@ void writeOptionsToFile(vector<RandOption> &randOptions,
     string dataFile = "../data/" + filename + ".in";
 
     auto rng = default_random_engine{};
-    shuffle(begin(randOptions), end(randOptions), rng);
+    shuffle(begin(randValuations), end(randValuations), rng);
 
-    Valuations options(randvaluations.size());
-    for (int i = 0; i < randvaluations.size(); i++)
+    Valuations valuations(randValuations.size());
+    for (int i = 0; i < randValuations.size(); i++)
     {
-        valuations.Lengths.push_back(3);
-        valuations.Maturities.push_back(randvaluations.at(i).Maturity);
-        valuations.StrikePrices.push_back(63);
         valuations.TermUnits.push_back(365);
-        valuations.TermSteps.push_back(randvaluations.at(i).TermStepCount);
-        valuations.MeanReversionRates.push_back(randvaluations.at(i).ReversionRate);
+        valuations.TermSteps.push_back(randValuations.at(i).TermStep);
+        valuations.MeanReversionRates.push_back(randValuations.at(i).MeanReversionRate);
         valuations.Volatilities.push_back(0.01);
+
+        valuations.Maturities.push_back(randValuations.at(i).Maturity);
+        valuations.Cashflows.push_back(3);
+        valuations.CashflowSteps.push_back(3);
+        valuations.Repayments.push_back(3);
+        valuations.Coupons.push_back(3);
+        valuations.Spreads.push_back(3);
+
         valuations.OptionTypes.push_back(OptionType::PUT);
+        valuations.StrikePrices.push_back(63);
+        valuations.FirstExerciseSteps.push_back(63);
+        valuations.LastExerciseSteps.push_back(63);
+        valuations.ExerciseStepFrequencies.push_back(63);
+        
+        valuations.ExerciseStepFrequencies.push_back(63);
+        
+        valuations.ExerciseStepFrequencies.push_back(63);
+        valuations.ExerciseStepFrequencies.push_back(63);
+        valuations.ExerciseStepFrequencies.push_back(63);
     }
 
     valuations.writeToFile(dataFile);
 }
 
-void distribute_0(vector<RandOption> &valuations, const long numOptions)
+void distribute_0(vector<RandValuation> &valuations, const long numOptions)
 {
     long currentNumOptions = 0;
 
     while (currentNumOptions < numOptions)
     {
-        RandOption o(9, 12, 0.1, false);
+        RandValuation o(9, 12, 0.1, false);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -126,7 +169,7 @@ void distribute_0(vector<RandOption> &valuations, const long numOptions)
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_1(vector<RandOption> &valuations, const long numOptions)
+void distribute_1(vector<RandValuation> &valuations, const long numOptions)
 {
     long currentNumOptions = 0;
 
@@ -134,7 +177,7 @@ void distribute_1(vector<RandOption> &valuations, const long numOptions)
     {
         int maturity = randIntInRange(1, 100);
         real reversionRate = getRRByWidthRange(7, 511);
-        RandOption o(maturity, 12, reversionRate, false);
+        RandValuation o(maturity, 12, reversionRate, false);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -143,14 +186,14 @@ void distribute_1(vector<RandOption> &valuations, const long numOptions)
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_2(vector<RandOption> &valuations, const long numOptions)
+void distribute_2(vector<RandValuation> &valuations, const long numOptions)
 {
     long currentNumOptions = 0;
 
     while (currentNumOptions < numOptions)
     {
         real reversionRate = getRRByWidthRange(7, 511);
-        RandOption o(9, 12, reversionRate, false);
+        RandValuation o(9, 12, reversionRate, false);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -159,14 +202,14 @@ void distribute_2(vector<RandOption> &valuations, const long numOptions)
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_3(vector<RandOption> &valuations, const long numOptions)
+void distribute_3(vector<RandValuation> &valuations, const long numOptions)
 {
     long currentNumOptions = 0;
 
     while (currentNumOptions < numOptions)
     {
         int maturity = randIntInRange(1, 100);
-        RandOption o(maturity, 12, 0.1, false);
+        RandValuation o(maturity, 12, 0.1, false);
         addOption(valuations, o, currentNumOptions);
     }
     string filename = "3_RANDCONSTWIDTH";
@@ -174,7 +217,7 @@ void distribute_3(vector<RandOption> &valuations, const long numOptions)
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_4(vector<RandOption> &valuations, const long numOptions, const int skewPerc)
+void distribute_4(vector<RandValuation> &valuations, const long numOptions, const int skewPerc)
 {
     long currentNumOptions = 0;
 
@@ -182,7 +225,7 @@ void distribute_4(vector<RandOption> &valuations, const long numOptions, const i
     {
         int maturity = randIntInRange(70, 100);
         real reversionRate = getRRByWidthRange(411, 511);
-        RandOption o(maturity, 12, reversionRate, true);
+        RandValuation o(maturity, 12, reversionRate, true);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -192,7 +235,7 @@ void distribute_4(vector<RandOption> &valuations, const long numOptions, const i
     {
         int maturity = randIntInRange(1, 30);
         real reversionRate = getRRByWidthRange(7, 107);
-        RandOption o(maturity, 12, reversionRate, false);
+        RandValuation o(maturity, 12, reversionRate, false);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -201,7 +244,7 @@ void distribute_4(vector<RandOption> &valuations, const long numOptions, const i
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_5(vector<RandOption> &valuations, const long numOptions, const int skewPerc)
+void distribute_5(vector<RandValuation> &valuations, const long numOptions, const int skewPerc)
 {
     long currentNumOptions = 0;
 
@@ -209,7 +252,7 @@ void distribute_5(vector<RandOption> &valuations, const long numOptions, const i
     {
         // int maturity = randIntInRange(1, 100);
         real reversionRate_skew = getRRByWidthRange(7, 107);
-        RandOption o(100, 12, reversionRate_skew, true);
+        RandValuation o(100, 12, reversionRate_skew, true);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -219,7 +262,7 @@ void distribute_5(vector<RandOption> &valuations, const long numOptions, const i
     {
         int maturity = randIntInRange(1, 30);
         real reversionRate = getRRByWidthRange(7, 107);
-        RandOption o(maturity, 12, reversionRate, false);
+        RandValuation o(maturity, 12, reversionRate, false);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -228,7 +271,7 @@ void distribute_5(vector<RandOption> &valuations, const long numOptions, const i
     cout << "finished writing to " << filename << endl;
 }
 
-void distribute_6(vector<RandOption> &valuations, const long numOptions, const int skewPerc)
+void distribute_6(vector<RandValuation> &valuations, const long numOptions, const int skewPerc)
 {
     long currentNumOptions = 0;
 
@@ -237,7 +280,7 @@ void distribute_6(vector<RandOption> &valuations, const long numOptions, const i
     {
         int maturity = randIntInRange(1, 30);
 
-        RandOption o(maturity, 12, reversionRate_skew, true);
+        RandValuation o(maturity, 12, reversionRate_skew, true);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -247,7 +290,7 @@ void distribute_6(vector<RandOption> &valuations, const long numOptions, const i
     {
         int maturity = randIntInRange(1, 30);
         real reversionRate = getRRByWidthRange(7, 107);
-        RandOption o(maturity, 12, reversionRate, false);
+        RandValuation o(maturity, 12, reversionRate, false);
         addOption(valuations, o, currentNumOptions);
     }
 
@@ -274,7 +317,7 @@ int main(int argc, char *argv[])
     cmd >> GetOpt::Option('n', "totalOptions", totalOptions);
     cmd >> GetOpt::Option('s', "skewPerc", skewPercent);
 
-    vector<RandOption> randOptions;
+    vector<RandValuation> randOptions;
 
     switch (dataType)
     {
@@ -301,13 +344,13 @@ int main(int argc, char *argv[])
         break;
     default:
         // if out of range - just print them all
-        vector<RandOption> rand0;
-        vector<RandOption> rand1;
-        vector<RandOption> rand2;
-        vector<RandOption> rand3;
-        vector<RandOption> rand4;
-        vector<RandOption> rand5;
-        vector<RandOption> rand6;
+        vector<RandValuation> rand0;
+        vector<RandValuation> rand1;
+        vector<RandValuation> rand2;
+        vector<RandValuation> rand3;
+        vector<RandValuation> rand4;
+        vector<RandValuation> rand5;
+        vector<RandValuation> rand6;
         distribute_0(rand0, totalOptions);
         distribute_1(rand1, totalOptions);
         distribute_2(rand2, totalOptions);
