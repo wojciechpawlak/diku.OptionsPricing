@@ -101,14 +101,16 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 
     ValuationConstants c;
     computeConstants(c, valuations, idx);
-    //printf("%d: %d %d %d %d %d %d %d %d %d\n", idx, c.ycIdx, c.firstYCTermIdx, c.lastYCTermIdx, c.cIdx, c.firstCIdx, lastCIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
-    //printf("%d: %f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
+#ifdef DEV
+    printf("%d: %d %d %d %d\n", idx, c.firstYCTermIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
+    printf("%d: %f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
+#endif
     args.init(valuations);
     args.setQAt(c.jmax, one);
     int lastUsedYCTermIdx = 0;
     auto alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
     args.setAlphaAt(0, exp(-alpha * c.dt));
-    //args.setAlphaAt(0, alpha);
+
     //if (args.getIdx() == 2)
     //    printf("0 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
     //        0, alpha, args.getAlphaAt(0), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
@@ -250,6 +252,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     {
         const auto jhigh = min(i, c.jmax);
         const auto expmAlphadt = args.getAlphaAt(i);
+
         //if (args.getIdx() == 2)
         //    printf("3 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
         //        i, alpha, args.getAlphaAt(i), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
