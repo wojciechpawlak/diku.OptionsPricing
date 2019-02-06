@@ -15,6 +15,7 @@ struct ValuationConstants
 {
     real dt; // [years]
     real dr;
+    real expmOasdt; // exponent of option adjusted spread - exp(-oas * dt)
     real X;
     real M;
     int32_t jmax;
@@ -59,6 +60,9 @@ struct ValuationConstants
 
         jmax = (int)(minus184 / M) + 1;
         width = 2 * jmax + 1;
+
+        expmOasdt = exp(-(valuations.Spreads[idx] / hundred)*dt); // scale down
+
         //assert(valuations.YieldCurveIndices != NULL);
         //assert(valuations.CashflowIndices != NULL);
         firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];

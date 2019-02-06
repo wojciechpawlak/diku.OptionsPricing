@@ -22,8 +22,8 @@ enum class SortType : char
 
 enum class OptionType : int8_t
 {
-    CALL = 0,
-    PUT = 1
+    CALL_VANILLA = 0,
+    PUT_VANILLA = 1
 };
 
 inline std::ostream &operator<<(std::ostream &os, const OptionType t)
@@ -37,7 +37,7 @@ inline std::istream &operator>>(std::istream &is, OptionType &t)
     int c;
     is >> c;
     t = static_cast<OptionType>(c);
-    if (OptionType::CALL != t && OptionType::PUT != t)
+    if (OptionType::CALL_VANILLA != t && OptionType::PUT_VANILLA != t)
     {
         throw std::out_of_range("Invalid OptionType read from stream.");
     }

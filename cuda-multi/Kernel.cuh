@@ -161,11 +161,11 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
     }
     __syncthreads();
 
-    int lastIdx = 0;
+    int lastUsedYCTermIdx = 0;
     // Set the initial alpha and Q values
     if (idx < idxBlockNext)
     {
-        auto alpha = interpolateYieldAtTimeStep(args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], valuations.YieldCurveRates, valuations.YieldCurveTimeSteps, valuations.YieldCurveCount, &lastIdx);
+        auto alpha = interpolateRateAtTimeStep(args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
         args.getAlphas()[threadIdx.x] = alpha;
         //if (idx == 2)
         //    printf("0 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
@@ -276,7 +276,7 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
         __syncthreads();
         if (idx < idxBlockNext && i <= args.getNs()[threadIdx.x])
         {       
-            args.getAlphas()[threadIdx.x] = computeAlpha(args.getQexps()[threadIdx.x], i - 1, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], valuations.YieldCurveRates, valuations.YieldCurveTimeSteps, valuations.YieldCurveCount, &lastIdx);
+            args.getAlphas()[threadIdx.x] = computeAlpha(args.getQexps()[threadIdx.x], i - 1, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
             //auto alpha = computeAlpha(args.getQexps()[threadIdx.x], i - 1, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], valuations.YieldPrices, valuations.YieldTimeSteps, valuations.YieldSize, &lastIdx);
             //args.getAlphas()[threadIdx.x] = alpha;
             //if (idx == 2)
@@ -347,7 +347,7 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
             }
 
             // after obtaining the result from (i+1) nodes, set the call for ith node
-            call = getOptionPayoff(isMaturity, c.X, c.type, res);
+            call = getOptionPayoff(isMaturity, c.X, c.type, res, 0.0);
         }
         __syncthreads();
 
@@ -447,16 +447,16 @@ public:
     void run(const Valuations &valuations, std::vector<real> &results, 
         const int blockSize = -1, const SortType sortType = SortType::NONE, bool isTest = false)
     {
-        CudaValuations cudaOptions(valuations, yield);
+        CudaValuations cudaValuations(valuations);
 
         // Start timing when input is copied to device
         cudaDeviceSynchronize();
         auto timeBegin = std::chrono::steady_clock::now();
 
-        cudavaluations.initialize();
+        cudaValuations.initialize();
 
         // Get the max width
-        auto maxWidth = *(thrust::max_element(cudavaluations.Widths.begin(), cudavaluations.Widths.end()));
+        auto maxWidth = *(thrust::max_element(cudaValuations.Widths.begin(), cudaValuations.Widths.end()));
 
         BlockSize = blockSize;
         if (BlockSize <= 0) 
@@ -472,17 +472,17 @@ public:
             throw std::invalid_argument(oss.str());
         }
 
-        run(cudaOptions, results, timeBegin, blockSize, sortType, isTest);
+        run(cudaValuations, results, timeBegin, blockSize, sortType, isTest);
     }
 
-    void run(CudaValuations &cudaOptions, std::vector<real> &results, const std::chrono::time_point<std::chrono::steady_clock> timeBegin, 
+    void run(CudaValuations &cudaValuations, std::vector<real> &results, const std::chrono::time_point<std::chrono::steady_clock> timeBegin,
         const int blockSize, const SortType sortType = SortType::NONE, const bool isTest = false)
     {
         TimeBegin = timeBegin;
         IsTest = isTest;
 
-        cudavaluations.sortOptions(sortType, isTest);
-        runPreprocessing(cudaOptions, results);
+        cudaValuations.sortValuations(sortType, isTest);
+        runPreprocessing(cudaValuations, results);
     }
 
 };

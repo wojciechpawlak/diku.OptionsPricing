@@ -152,20 +152,21 @@ DEVICE inline real computeAccruedInterest(const uint16_t termStepCounts, const i
     return (couponsTimeDiff - (real)eventsTimeDiff) / couponsTimeDiff * nextCoupon;
 }
 
-DEVICE inline real getOptionPayoff(bool isMaturity, const real strike, const OptionType type, const real bondPrice, const real ai)
+DEVICE inline real getOptionPayoff(bool isExerciseStep, const real strike, const OptionType type, const real bondPrice, const real ai)
 {
     real ret = bondPrice;
-    if (isMaturity)
+    if (isExerciseStep)
     {
+        const real exercisePrice = strike + ai;
         switch (type)
         {
-        case OptionType::CALL:
+        case OptionType::CALL_VANILLA:
             //ret = MAX(bondPrice - X, zero); // Call Option
-            ret = bondPrice > strike ? strike + ai : bondPrice; // Call on a bond (embedded)
+            ret = bondPrice > exercisePrice ? exercisePrice : bondPrice; // Call on a bond (embedded)
             break;
-        case OptionType::PUT:
+        case OptionType::PUT_VANILLA:
             //ret = MAX(X - bondPrice, zero);
-            ret = strike > bondPrice ? strike + ai : bondPrice; // Put on a bond (embedded)
+            ret = exercisePrice > bondPrice ? exercisePrice : bondPrice; // Put on a bond (embedded)
             break;
         }
     }

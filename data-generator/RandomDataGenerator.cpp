@@ -138,7 +138,7 @@ void writeOptionsToFile(vector<RandValuation> &randValuations,
         valuations.Coupons.push_back(3);
         valuations.Spreads.push_back(3);
 
-        valuations.OptionTypes.push_back(OptionType::PUT);
+        valuations.OptionTypes.push_back(OptionType::PUT_VANILLA);
         valuations.StrikePrices.push_back(63);
         valuations.FirstExerciseSteps.push_back(63);
         valuations.LastExerciseSteps.push_back(63);

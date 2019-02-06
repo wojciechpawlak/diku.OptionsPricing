@@ -21,7 +21,7 @@ struct jvalue
  *  Sequential version that computes the bond tree until bond maturity
  *  and prices the option on maturity during backward propagation.
  **/
-real computeSingleOption(const ValuationConstants &c)
+real computeSingleOption(const ValuationConstants &c, const Valuations &valuations, const int idx)
 {
     // Precompute probabilities and rates for all js.
     auto jvalues = new jvalue[c.width];
@@ -99,15 +99,15 @@ real computeSingleOption(const ValuationConstants &c)
         // Determine the new alpha using equation 30.22
         // by summing up Qs from the next time step
         auto jhigh1 = MIN(i + 1, c.jmax);
-        real alpha_val = 0;
+        auto aggregatedQs = zero;
         for (auto j = -jhigh1; j <= jhigh1; ++j)
         {
             auto jind = j - jmin;      // array index for j
             auto jval = jvalues[jind]; // precomputed probabilities and rates
-            alpha_val += QsCopy[jind] * exp(-jval.rate * c.dt);
+            aggregatedQs += QsCopy[jind] * exp(-jval.rate * c.dt);
         }
 
-        alphas[i + 1] = computeAlpha(alpha_val, i, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
+        alphas[i + 1] = computeAlpha(aggregatedQs, i, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
         printf("2 %d alpha %f \n", i+1, alphas[i + 1]);
         // Switch Qs
         auto QsT = Qs;
@@ -117,63 +117,80 @@ real computeSingleOption(const ValuationConstants &c)
     }
 
     // Backward propagation
-    auto call = Qs; // call[j]
-    auto callCopy = QsCopy;
+    auto price = Qs; // call[j]
+    auto priceCopy = QsCopy;
 
-    std::fill_n(call, c.width, 100); // initialize to 100$
+    auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+    printf("%d: %d %f %f %d\n", idx, lastUsedCIdx, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
+    std::fill_n(price, c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
+    auto lastUsedCStep = valuations.CashflowSteps[--lastUsedCIdx];
 
     for (auto i = c.n - 1; i >= 0; --i)
     {
         auto jhigh = MIN(i, c.jmax);
         auto alpha = alphas[i];
         printf("3 %d alpha %f \n", i, alpha);
-        auto isMaturity = i == ((int)(c.t / c.dt));
+        const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastUsedCStep - i) % c.ExerciseStepFrequency == 0;
+
+        // add coupon and repayments
+        if (i == lastUsedCStep - 1)
+        {
+            for (auto j = -jhigh; j <= jhigh; ++j)
+            {
+                const auto jind = j + c.jmax;      // array index for j
+                price[jind] += valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
+            }
+            lastUsedCStep = (--lastUsedCIdx >= 0) ? valuations.CashflowSteps[lastUsedCIdx] : 0;
+        }
+
+        // calculate accrued interest from cashflow
+        const auto ai = isExerciseStep && lastUsedCStep != 0 ? computeAccruedInterest(c.termStepCount, i, lastUsedCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             auto jind = j - jmin;      // array index for j
             auto jval = jvalues[jind]; // precomputed probabilities and rates
-            auto callExp = exp(-(alpha + jval.rate) * c.dt);
+            auto discFactor = exp(-(alpha + jval.rate) * c.dt);
 
             real res;
             if (j == c.jmax)
             {
                 // Top edge branching
-                res = (jval.pu * call[jind] +
-                       jval.pm * call[jind - 1] +
-                       jval.pd * call[jind - 2]) *
-                      callExp;
+                res = (jval.pu * price[jind] +
+                       jval.pm * price[jind - 1] +
+                       jval.pd * price[jind - 2]) *
+                      discFactor;
             }
             else if (j == jmin)
             {
                 // Bottom edge branching
-                res = (jval.pu * call[jind + 2] +
-                       jval.pm * call[jind + 1] +
-                       jval.pd * call[jind]) *
-                      callExp;
+                res = (jval.pu * price[jind + 2] +
+                       jval.pm * price[jind + 1] +
+                       jval.pd * price[jind]) *
+                      discFactor;
             }
             else
             {
                 // Standard branching
-                res = (jval.pu * call[jind + 1] +
-                       jval.pm * call[jind] +
-                       jval.pd * call[jind - 1]) *
-                      callExp;
+                res = (jval.pu * price[jind + 1] +
+                       jval.pm * price[jind] +
+                       jval.pd * price[jind - 1]) *
+                      discFactor;
             }
 
             // after obtaining the result from (i+1) nodes, set the call for ith node
-            callCopy[jind] = getOptionPayoff(isMaturity, c.X, c.type, res);
+            priceCopy[jind] = getOptionPayoff(isExerciseStep, c.X, c.type, res, ai);
         }
 
-        // Switch call arrays
-        auto callT = call;
-        call = callCopy;
-        callCopy = callT;
+        // Switch price arrays
+        auto priceT = price;
+        price = priceCopy;
+        priceCopy = priceT;
 
-        std::fill_n(callCopy, c.width, 0);
+        std::fill_n(priceCopy, c.width, 0);
     }
 
-    auto result = call[c.jmax];
+    auto result = price[c.jmax];
     printf("res: %f\n", result);
     delete[] jvalues;
     delete[] alphas;
@@ -189,7 +206,7 @@ void computeOptions(const Valuations &valuations, std::vector<real> &results)
     for (auto i = 0; i < valuations.ValuationCount; ++i)
     {
         ValuationConstants c(valuations, i);
-        auto result = computeSingleOption(c, yield);
+        auto result = computeSingleOption(c, valuations, i);
         results[i] = result;
     }
 }

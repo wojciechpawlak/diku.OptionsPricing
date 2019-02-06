@@ -13,19 +13,32 @@ using namespace trinom;
 
 TEST_CASE("Book options")
 {
-    YieldCurves yield(YIELD_CURVE_PATH);
-    
-    Valuations options(100);
+    Valuations valuations(100);
     for (int i = 1; i <= valuations.ValuationCount; ++i)
     {
-        valuations.Lengths.push_back(3);
-        valuations.Maturities.push_back(9);
-        valuations.StrikePrices.push_back(63);
-        valuations.TermUnits.push_back(365);
+        valuations.TermUnits.push_back(360);
         valuations.TermSteps.push_back(i);
-        valuations.ReversionRates.push_back(0.1);
+        valuations.MeanReversionRates.push_back(0.1);
         valuations.Volatilities.push_back(0.01);
-        valuations.OptionTypes.push_back(OptionType::PUT);
+
+        valuations.Maturities.push_back(9);
+        valuations.Cashflows.push_back(3);
+        valuations.CashflowSteps.push_back(3);
+        valuations.Repayments.push_back(3);
+        valuations.Coupons.push_back(3);
+        valuations.Spreads.push_back(3);
+
+        valuations.OptionTypes.push_back(OptionType::PUT_VANILLA);
+        valuations.StrikePrices.push_back(63);
+        valuations.FirstExerciseSteps.push_back(63);
+        valuations.LastExerciseSteps.push_back(63);
+        valuations.ExerciseStepFrequencies.push_back(63);
+
+        valuations.ExerciseStepFrequencies.push_back(63);
+
+        valuations.ExerciseStepFrequencies.push_back(63);
+        valuations.ExerciseStepFrequencies.push_back(63);
+        valuations.ExerciseStepFrequencies.push_back(63);
     }
     
     vector<real> seqResults, cudaResults;

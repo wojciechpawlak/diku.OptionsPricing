@@ -87,12 +87,11 @@ int main(int argc, char *argv[])
 
     if (args.test)
     {
-        cout << "Loading options " << args.valuations << ", yield " << args.yield << endl;
+        cout << "Loading options " << args.valuations << endl;
     }
 
     // Read options and yield curve.
-    Valuations options(args.valuations);
-    YieldCurves yield(args.yield);
+    Valuations valuations(args.valuations);
 
     // Initialize cuda device.
     cudaSetDevice(args.device);

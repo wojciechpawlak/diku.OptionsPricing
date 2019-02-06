@@ -4,7 +4,7 @@
 #include "../cuda/CudaDomain.cuh"
 
 #define DEFAULT_BLOCK_SIZE 256
-#define PRINT_IDX 5
+#define PRINT_IDX 4
 #define DEV
 
 using namespace trinom;
@@ -245,7 +245,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     // TODO Find out how to handle oas spread
     auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
     printf("%d: %d %f %f %d\n", idx, lastUsedCIdx, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
-    args.fillQs(c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value + last repayment + coupon
+    args.fillQs(c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
     auto lastUsedCStep = valuations.CashflowSteps[--lastUsedCIdx];
 
     for (auto i = c.n - 1; i >= 0; --i)
@@ -258,11 +258,10 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         //        i, alpha, args.getAlphaAt(i), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
         
         // check if there is an option exercise at the current step
-        const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastUsedCStep - i) % c.ExerciseStepFrequency == 0; // Bermudan
+        const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastUsedCStep - i) % c.ExerciseStepFrequency == 0;
 #ifdef DEV
         if (idx == PRINT_IDX) printf("%d: %d %d %d %d\n", i, isExerciseStep, lastUsedCStep, (lastUsedCStep - i) % c.ExerciseStepFrequency, (lastUsedCStep - i) % c.ExerciseStepFrequency == 0);
 #endif
-        
         // add coupon and repayments
         if (i == lastUsedCStep - 1)
         {
@@ -281,8 +280,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         }
 
         // calculate accrued interest from cashflow
-        auto ai = zero;
-        if (isExerciseStep && lastUsedCStep != 0) ai = computeAccruedInterest(c.termStepCount, i, lastUsedCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]);
+        const auto ai = isExerciseStep && lastUsedCStep != 0 ? computeAccruedInterest(c.termStepCount, i, lastUsedCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV
         if (idx == PRINT_IDX && isExerciseStep) 
             printf("%d: ai %f %d %d %d %f %d %d %f\n", i, ai, c.termStepCount, lastUsedCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
@@ -293,7 +291,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j
-            const auto discFactor = expmAlphadt * args.getRateAt(jind);
+            const auto discFactor = expmAlphadt * args.getRateAt(jind) * c.expmOasdt;
 
             real res;
             if (j == c.jmax)
@@ -359,7 +357,7 @@ protected:
         thrust::device_vector<real> alphas(totalAlphasCount);
         thrust::device_vector<real> result(valuations.ValuationCount);
 
-        const auto blockCount = (int)lround(valuations.ValuationCount / ((real)BlockSize));
+        const auto blockCount = (int)ceil(valuations.ValuationCount / ((real)BlockSize));
 
         valuations.DeviceMemory += vectorsizeof(rates);
         valuations.DeviceMemory += vectorsizeof(pus);

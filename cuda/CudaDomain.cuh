@@ -337,6 +337,8 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
     c.jmax = (int)(minus184 / c.M) + 1;
     c.width = 2 * c.jmax + 1;
 
+    c.expmOasdt = exp(-(valuations.Spreads[idx] / hundred)*c.dt);
+
     c.firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
 
     c.LastExerciseStep = valuations.LastExerciseSteps[idx];
