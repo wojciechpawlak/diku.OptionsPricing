@@ -3,10 +3,10 @@
 
 #include <vector>
 #include <cmath>
+#include <cassert>
 
 #include "CudaInterop.h"
 #include "Valuations.hpp"
-#include <cassert>
 
 namespace trinom
 {
@@ -15,7 +15,6 @@ struct ValuationConstants
 {
     real dt; // [years]
     real dr;
-    real expmdrdt;
     real X;
     real M;
     int32_t jmax;
@@ -26,7 +25,6 @@ struct ValuationConstants
     OptionType type; // char
 
     uint16_t firstYCTermIdx;
-    int lastCIdx;
 
     uint16_t LastExerciseStep;
     uint16_t FirstExerciseStep;
@@ -55,8 +53,6 @@ struct ValuationConstants
         dr = sqrt(three * V);
         M = exp(-a * dt) - one;
 
-        expmdrdt = exp(-dr * dt);
-
         // simplified computations
         // dr = sigma * sqrt(three * dt);
         // M = -a * dt;
@@ -66,7 +62,6 @@ struct ValuationConstants
         //assert(valuations.YieldCurveIndices != NULL);
         //assert(valuations.CashflowIndices != NULL);
         firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
-        lastCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
 
         firstYieldCurveRate = &valuations.YieldCurveRates[firstYCTermIdx];
         firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[firstYCTermIdx];

@@ -5,6 +5,7 @@
 
 #define DEFAULT_BLOCK_SIZE 256
 #define PRINT_IDX 5
+#define DEV
 
 using namespace trinom;
 
@@ -26,7 +27,7 @@ struct KernelArgsValues
     //real *OptPsAll;     // backward propagation: option prices
     //real *OptPsCopyAll; // buffer, backward propagation: option prices
     real *res;          // pricing result
-};
+};  
 
 /**
 Base class for kernel arguments.
@@ -100,78 +101,65 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 
     ValuationConstants c;
     computeConstants(c, valuations, idx);
-    //printf("%d: %d %d %d %d %d %d %d %d %d\n", idx, c.ycIdx, c.firstYCTermIdx, c.lastYCTermIdx, c.cIdx, c.firstCIdx, c.lastCIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
+    //printf("%d: %d %d %d %d %d %d %d %d %d\n", idx, c.ycIdx, c.firstYCTermIdx, c.lastYCTermIdx, c.cIdx, c.firstCIdx, lastCIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
     //printf("%d: %f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
     args.init(valuations);
     args.setQAt(c.jmax, one);
-    int lastIdx = 0;
-    auto alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastIdx);
-    //args.setAlphaAt(0, exp(-alpha * c.dt));
-    args.setAlphaAt(0, alpha);
-    //args.setAlphaAt(0, getYieldAtYear(c.dt, c.termUnit, valuations.YieldCurveRates, valuations.YieldCurveTimeSteps, valuations.YieldCurveTerms[c.ycIdx], &lastIdx));
-    //auto alpha = getYieldAtYear(c.dt, c.termUnit, valuations.YieldPrices, valuations.YieldTimeSteps, valuations.YieldSize, &lastIdx);
+    int lastUsedYCTermIdx = 0;
+    auto alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
+    args.setAlphaAt(0, exp(-alpha * c.dt));
     //args.setAlphaAt(0, alpha);
     //if (args.getIdx() == 2)
     //    printf("0 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
     //        0, alpha, args.getAlphaAt(0), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
 
-    // Precompute rates for each node on the width on the tree (constant over forward propagation)
+    // Precompute exponent of rates for each node on the width on the tree (constant over forward propagation)
     for (auto j = -c.jmax; j <= c.jmax; ++j)
     {
         auto jind = j + c.jmax;
-        args.setRateAt(jind, j * c.dr);
+        args.setRateAt(jind, exp(-(real)j*c.dr*c.dt));
     }
-
-    // Precompute differences between nodes; possible, because dr and dt are constant
-    //for (int j = -c.jmax; j <= c.jmax; j++)
-    //{
-    //    auto jind = j + c.jmax;
-    //    args.setRateAt(jind, exp(-((real)j - 1)*c.dr*c.dt)); // emjm1Rdts[idx2d_col(j + jmax - 1, threadIndex, padSize)] * emdrdt
-    //}
 
     // Precompute probabilities for each node on the width on the tree (constant over forward and backward propagation)
     args.setPAt(0, 1, PU_B(-c.jmax, c.M)); args.setPAt(0, 2, PM_B(-c.jmax, c.M)); args.setPAt(0, 3, PD_B(-c.jmax, c.M));
-    //if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, 0, args.getPAt(0, 1), args.getPAt(0, 2), args.getPAt(0, 3));
+#ifdef DEV1
+    if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, 0, args.getPAt(0, 1), args.getPAt(0, 2), args.getPAt(0, 3));
+#endif
     for (auto j = -c.jmax + 1; j < c.jmax; ++j)
     {
         auto jind = j + c.jmax;
         args.setPAt(jind, 1, PU_A(j, c.M)); args.setPAt(jind, 2, PM_A(j, c.M)); args.setPAt(jind, 3, PD_A(j, c.M));
-        //if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, jind, args.getPAt(jind, 1), args.getPAt(jind, 2), args.getPAt(jind, 3));
+#ifdef DEV1
+        if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, jind, args.getPAt(jind, 1), args.getPAt(jind, 2), args.getPAt(jind, 3));
+#endif
     }
     args.setPAt(c.width - 1, 1, PU_C(c.jmax, c.M)); args.setPAt(c.width - 1, 2, PM_C(c.jmax, c.M)); args.setPAt(c.width - 1, 3, PD_C(c.jmax, c.M));
-    //if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, c.width - 1, args.getPAt(c.width - 1, 1), args.getPAt(c.width - 1, 2), args.getPAt(c.width - 1, 3));
+#ifdef DEV1
+    if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, c.width - 1, args.getPAt(c.width - 1, 1), args.getPAt(c.width - 1, 2), args.getPAt(c.width - 1, 3));
+#endif
 
     // Forward propagation
     for (auto i = 1; i <= c.n; ++i)
     {
         const auto jhigh = min(i, c.jmax);
-        //const auto alpha = args.getAlphaAt(i-1);
 
         //if (args.getIdx() == 2)
         //    printf("1 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
         //        i - 1, alpha, args.getAlphaAt(i - 1), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
-
-        real alpha_aggregate = zero;
-
+        
         // Precompute Qexp
-        alpha = args.getAlphaAt(i - 1);
+        const auto expmAlphadt = args.getAlphaAt(i - 1);
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j
-            //real Qexp = args.getQAt(jind) * alpha * args.getRateAt(jind) * c.expmdrdt;
-            real Qexp = args.getQAt(jind) * exp(-(alpha + args.getRateAt(jind)) * c.dt);
+            real Qexp = args.getQAt(jind) * expmAlphadt * args.getRateAt(jind);
             args.setQAt(jind, Qexp);
         }
         // Forward iteration step, compute Qs in the next time step
+        real aggregatedQs = zero;
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j            
-
-            //const auto expmjm1AlphadrdtBase = args.getRateAt(jind) * args.getAlphaAt(i-1);
-            
-            //const auto expu1 = j == jhigh ? zero : expmjm1AlphadrdtBase * c.expmdrdt * c.expmdrdt;
-            //const auto expm = expmjm1AlphadrdtBase * c.expmdrdt;
-            //const auto expd1 = j == -jhigh ? zero : expmjm1AlphadrdtBase;
 
             const auto expu1 = j == jhigh ? zero : args.getQAt(jind + 1);
             const auto expm = args.getQAt(jind);
@@ -234,21 +222,15 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
             }
             // Determine the new alpha using equation 30.22
             // by summing up Qs from the next time step
-            //if (idx == 1)
-            //{
-            //    printf("%d:%d %.18f ", i, jind, Q);
-            //}
             args.setQCopyAt(jind, Q); 
-            //alpha_aggregate += Q * args.getRateAt(jind) * c.expmdrdt;
-            alpha_aggregate += Q * exp(-args.getRateAt(jind) * c.dt);
+            aggregatedQs += Q * args.getRateAt(jind);
         }
 
-        alpha = computeAlpha(alpha_aggregate, i - 1, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastIdx);
-        //args.setAlphaAt(i, exp(-alpha * c.dt));
-        args.setAlphaAt(i, alpha);
-        if (idx == PRINT_IDX) printf("%d: %.18f %.18f %.18f\n", i, alpha, args.getAlphaAt(i), exp(-alpha * c.dt));
-        //auto alpha2 = computeAlpha(alpha_val, i - 1, c.dt, c.termUnit, valuations.YieldPrices, valuations.YieldTimeSteps, valuations.YieldSize, &lastIdx);
-        //args.setAlphaAt(i, alpha2);
+        alpha = computeAlpha(aggregatedQs, i - 1, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
+        args.setAlphaAt(i, exp(-alpha * c.dt));
+#ifdef DEV
+        if (idx == PRINT_IDX) printf("%d: %.18f %.18f\n", i, alpha, args.getAlphaAt(i));
+#endif
         //if (args.getIdx() == 2)
         //    printf("2 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
         //        i, alpha2, args.getAlphaAt(i), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
@@ -259,49 +241,56 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     
     // Backward propagation
     // TODO Find out how to handle oas spread
-    printf("%d: %d %f %f %d\n", idx, c.lastCIdx, valuations.Repayments[c.lastCIdx], valuations.Coupons[c.lastCIdx], valuations.CashflowSteps[c.lastCIdx]);
-    args.fillQs(c.width, valuations.Repayments[c.lastCIdx] + valuations.Coupons[c.lastCIdx]); // initialize to par/face value + last repayment + coupon
-    auto lastUsedCStep = valuations.CashflowSteps[--c.lastCIdx];
+    auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+    printf("%d: %d %f %f %d\n", idx, lastUsedCIdx, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
+    args.fillQs(c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value + last repayment + coupon
+    auto lastUsedCStep = valuations.CashflowSteps[--lastUsedCIdx];
 
     for (auto i = c.n - 1; i >= 0; --i)
     {
         const auto jhigh = min(i, c.jmax);
-        const auto alpha = args.getAlphaAt(i);
+        const auto expmAlphadt = args.getAlphaAt(i);
         //if (args.getIdx() == 2)
         //    printf("3 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
         //        i, alpha, args.getAlphaAt(i), 0.0, args.getIdx(), 0, 0, 0, idx, 0, threadIdx.x, 0.0, c.dt, c.termUnit, c.n, 0);
         
         // check if there is an option exercise at the current step
         const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastUsedCStep - i) % c.ExerciseStepFrequency == 0; // Bermudan
+#ifdef DEV
         if (idx == PRINT_IDX) printf("%d: %d %d %d %d\n", i, isExerciseStep, lastUsedCStep, (lastUsedCStep - i) % c.ExerciseStepFrequency, (lastUsedCStep - i) % c.ExerciseStepFrequency == 0);
+#endif
+        
         // add coupon and repayments
         if (i == lastUsedCStep - 1)
         {
-            if (idx == PRINT_IDX) printf("%d: %d coupon: %.18f\n", i, c.lastCIdx, args.getQAt(c.jmax));
+#ifdef DEV
+            if (idx == PRINT_IDX) printf("%d: %d coupon: %.18f\n", i, lastUsedCIdx, args.getQAt(c.jmax));
+#endif
             for (auto j = -jhigh; j <= jhigh; ++j)
             {
                 const auto jind = j + c.jmax;      // array index for j
-                args.setQAt(jind, args.getQAt(jind) + valuations.Repayments[c.lastCIdx] + valuations.Coupons[c.lastCIdx]);
+                args.setQAt(jind, args.getQAt(jind) + valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]);
             }
-            if (idx == PRINT_IDX) printf("%d: %d coupon: %.18f\n", i, c.lastCIdx, args.getQAt(c.jmax));
-            lastUsedCStep = (--c.lastCIdx >= 0) ? valuations.CashflowSteps[c.lastCIdx] : 0;
+#ifdef DEV
+            if (idx == PRINT_IDX) printf("%d: %d coupon: %.18f\n", i, lastUsedCIdx, args.getQAt(c.jmax));
+#endif
+            lastUsedCStep = (--lastUsedCIdx >= 0) ? valuations.CashflowSteps[lastUsedCIdx] : 0;
         }
 
         // calculate accrued interest from cashflow
-        real ai = 0.0;
-        if (isExerciseStep && lastUsedCStep != 0) ai = computeAccruedInterest(c.termStepCount, i, lastUsedCStep, valuations.CashflowSteps[c.lastCIdx + 1], valuations.Coupons[c.lastCIdx]);
+        auto ai = zero;
+        if (isExerciseStep && lastUsedCStep != 0) ai = computeAccruedInterest(c.termStepCount, i, lastUsedCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]);
+#ifdef DEV
         if (idx == PRINT_IDX && isExerciseStep) 
-            printf("%d: ai %f %d %d %d %f %d %d %f\n", i, ai, c.termStepCount, lastUsedCStep, valuations.CashflowSteps[c.lastCIdx + 1], valuations.Coupons[c.lastCIdx],
-                valuations.CashflowSteps[c.lastCIdx + 1] - lastUsedCStep, valuations.CashflowSteps[c.lastCIdx + 1] - i, 
-                (real)(valuations.CashflowSteps[c.lastCIdx + 1] - lastUsedCStep - valuations.CashflowSteps[c.lastCIdx + 1] - i) / (valuations.CashflowSteps[c.lastCIdx + 1] - lastUsedCStep));
+            printf("%d: ai %f %d %d %d %f %d %d %f\n", i, ai, c.termStepCount, lastUsedCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
+                valuations.CashflowSteps[lastUsedCIdx + 1] - lastUsedCStep, valuations.CashflowSteps[lastUsedCIdx + 1] - i, 
+                (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - lastUsedCStep - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - lastUsedCStep));
+#endif
 
-
-        //const auto expmjm1AlphadrdtBase = args.getAlphaAt(i) * c.expmdrdt;
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j
-            //const auto discFactor = expmjm1AlphadrdtBase * args.getRateAt(jind);
-            const auto discFactor = exp(-(alpha + args.getRateAt(jind)) * c.dt);
+            const auto discFactor = expmAlphadt * args.getRateAt(jind);
 
             real res;
             if (j == c.jmax)
@@ -334,7 +323,9 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 
         // Switch Qs
         args.switchQs();
+#ifdef DEV
         if (idx == PRINT_IDX) printf("%d: %.18f\n", i, args.getQAt(c.jmax));
+#endif
     }
 
     args.setResult(c.jmax);

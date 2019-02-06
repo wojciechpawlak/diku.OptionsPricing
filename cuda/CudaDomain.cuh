@@ -330,8 +330,6 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
     c.dr = sqrt(three * V);
     c.M = exp(-a * c.dt) - one;
 
-    c.expmdrdt = exp(-c.dr * c.dt);
-
     // simplified computations
     // c.dr = sigma * sqrt(three * c.dt);
     // c.M = -a * c.dt;
@@ -340,7 +338,6 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
     c.width = 2 * c.jmax + 1;
 
     c.firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
-    c.lastCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
 
     c.LastExerciseStep = valuations.LastExerciseSteps[idx];
     c.FirstExerciseStep = valuations.FirstExerciseSteps[idx];

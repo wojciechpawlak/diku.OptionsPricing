@@ -6,40 +6,40 @@
 namespace trinom
 {
 
-DEVICE real interpolateRateAtTimeStep(const real t, const int termUnit, const real *prices, const uint16_t *timeSteps, const uint16_t size, int *lastIdx)
+DEVICE inline real interpolateRateAtTimeStep(const real t, const int termUnit, const real *rates, const uint16_t *termSteps, const uint16_t size, int *lastUsedTermIdx)
 {
     const int tDays = (int)ROUND(t * termUnit);
     auto first = 0;
     auto second = 0;
 
     // extrapolate
-    if (tDays <= timeSteps[0])
+    if (tDays <= termSteps[0])
     {
-        return prices[0];
+        return rates[0];
     }
 
     // extrapolate
-    if (tDays > timeSteps[size - 1])
+    if (tDays > termSteps[size - 1])
     {
-        return prices[size - 1];
+        return rates[size - 1];
     }
 
     // interpolate
-    for (auto i = *lastIdx; i < size; ++i)
+    for (auto i = *lastUsedTermIdx; i < size; ++i)
     {
-        if (timeSteps[i] >= tDays)
+        if (termSteps[i] >= tDays)
         {
             second = i;
-            *lastIdx = i;
+            *lastUsedTermIdx = i;
             first = i - 1;
             break;
         }
     }
 
-    auto t1 = timeSteps[first];
-    auto t2 = timeSteps[second];
-    auto p1 = prices[first];
-    auto p2 = prices[second];
+    auto t1 = termSteps[first];
+    auto t2 = termSteps[second];
+    auto p1 = rates[first];
+    auto p2 = rates[second];
     auto coefficient = (tDays - t1) / (real)(t2 - t1);
     return p1 + coefficient * (p2 - p1);
 }
@@ -102,7 +102,7 @@ DEVICE inline real computeAlpha(const real aggregatedQs, const int i, const real
     return log(aggregatedQs / P) / dt;                              // new alpha
 }
 
-DEVICE real computeJValue(const int j, const int jmax, const real M, const int expout)
+DEVICE inline real computeJValue(const int j, const int jmax, const real M, const int expout)
 {
     if (j == -jmax)
     {
@@ -143,7 +143,7 @@ DEVICE real computeJValue(const int j, const int jmax, const real M, const int e
     return 0;
 }
 
-DEVICE real computeAccruedInterest(const uint16_t termStepCounts, const int i, const int prevCouponIdx, const int nextCouponIdx, const real nextCoupon)
+DEVICE inline real computeAccruedInterest(const uint16_t termStepCounts, const int i, const int prevCouponIdx, const int nextCouponIdx, const real nextCoupon)
 {
     real couponsTimeDiff = nextCouponIdx - prevCouponIdx;
     couponsTimeDiff = couponsTimeDiff <= 0.0 ? termStepCounts : couponsTimeDiff;
