@@ -46,8 +46,8 @@ inline std::istream &operator>>(std::istream &is, OptionType &t)
 
 struct Valuations
 {
-    int ValuationCount;
-    int YieldCurveCount;
+    size_t ValuationCount;
+    size_t YieldCurveCount;
     // Model parameters
     std::vector<uint16_t> TermUnits;
     std::vector<uint16_t> TermSteps;

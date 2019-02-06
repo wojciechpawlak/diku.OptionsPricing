@@ -12,8 +12,7 @@ using namespace trinom;
 void computeAllOptions(const Args &args)
 {
     // Read options from filename
-    Valuations options(args.valuations);
-    YieldCurves yield(args.yield);
+    Valuations valuations(args.valuations);
 
     if (args.test)
     {

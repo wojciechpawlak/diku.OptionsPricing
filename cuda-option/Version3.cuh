@@ -141,7 +141,7 @@ protected:
         thrust::sequence(keys.begin(), keys.end());
 
         if (Granularity == -1) Granularity = BlockSize;
-        const auto count = ceil(valuations.ValuationCount / ((float)Granularity));
+        const auto count = (int)lround(valuations.ValuationCount / ((real)Granularity));
         thrust::device_vector<int32_t> QsInds(count);
         thrust::device_vector<int32_t> alphasInds(count);
         thrust::device_vector<int32_t> keysOut(count);

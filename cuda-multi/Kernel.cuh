@@ -96,7 +96,7 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
 
         auto termUnits = valuations.TermUnits[idx];
         args.getTermUnits()[threadIdx.x] = termUnits;
-        auto termUnitsInYearCount = ceil((real)year / termUnits);
+        auto termUnitsInYearCount = (int)lround((real)year / termUnits);
         auto termStepCount = valuations.TermSteps[idx];
         args.getDts()[threadIdx.x] = termUnitsInYearCount / (real)termStepCount;
         args.getNs()[threadIdx.x] = termStepCount * termUnitsInYearCount * valuations.Maturities[idx];

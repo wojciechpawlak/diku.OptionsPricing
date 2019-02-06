@@ -61,7 +61,7 @@ struct compute_width_height
         real termStepCount = thrust::get<1>(t);
         real maturity = thrust::get<2>(t);
         real a = thrust::get<3>(t);
-        int termUnitsInYearCount = ceil((real)year / termUnit);
+        int termUnitsInYearCount = (int)lround((real)year / termUnit);
         real dt = termUnitsInYearCount / termStepCount;               // [years]
         real M = exp(-a * dt) - one;
         int jmax = (int)(minus184 / M) + 1;
@@ -317,7 +317,7 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
 {
     c.termUnit = valuations.TermUnits[idx];
     auto T = valuations.Maturities[idx];
-    const auto termUnitsInYearCount = ceil((real)year / c.termUnit);
+    const auto termUnitsInYearCount = (int)lround((real)year / c.termUnit);
     const auto termStepCount = valuations.TermSteps[idx];
     c.n = termStepCount * termUnitsInYearCount * T;
     c.dt = termUnitsInYearCount / (real)termStepCount; // [years]

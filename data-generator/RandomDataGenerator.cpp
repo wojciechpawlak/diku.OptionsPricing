@@ -37,12 +37,12 @@ struct RandOption
 
     void computeWidth()
     {
-        Width = 2 * ((int)(minus184 / (exp(-ReversionRate * ((ceil((real)year / 365)) / (real)TermStepCount)) - one)) + 1) + 1;
+        Width = 2 * ((int)(minus184 / (exp(-ReversionRate * ((lround((real)year / 365)) / (real)TermStepCount)) - one)) + 1) + 1;
     }
 
     void computeHeight()
     {
-        Height = (TermStepCount * (ceil((real)year / 365)) * Maturity) + 1;
+        Height = (TermStepCount * (lround((real)year / 365)) * Maturity) + 1;
     }
 };
 

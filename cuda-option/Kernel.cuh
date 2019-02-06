@@ -359,7 +359,7 @@ protected:
         thrust::device_vector<real> alphas(totalAlphasCount);
         thrust::device_vector<real> result(valuations.ValuationCount);
 
-        const auto blockCount = ceil(valuations.ValuationCount / ((float)BlockSize));
+        const auto blockCount = (int)lround(valuations.ValuationCount / ((real)BlockSize));
 
         valuations.DeviceMemory += vectorsizeof(rates);
         valuations.DeviceMemory += vectorsizeof(pus);
