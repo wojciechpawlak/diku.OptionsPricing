@@ -30,27 +30,27 @@ public:
 
     KernelArgsBase(KernelArgsValuesT &v) : values(v) { }
 
-    __device__ virtual void init(const int optionIdxBlock, const int idxBlock, const int idxBlockNext, const int optionCount) = 0;
+    __device__ virtual void init(const int valuationIdxBlock, const int idxBlock, const int idxBlockNext, const int valuationCount) = 0;
 
-    __device__ virtual void setAlphaAt(const int index, const real value, const int optionIndex = 0) = 0;
+    __device__ virtual void setAlphaAt(const int index, const real value, const int valuationIndex = 0) = 0;
 
-    __device__ virtual real getAlphaAt(const int index, const int optionIndex = 0) const = 0;
+    __device__ virtual real getAlphaAt(const int index, const int valuationIndex = 0) const = 0;
 
     __device__ virtual int getMaxHeight() const = 0;
 
-    __device__ virtual int getOptionIdx() const = 0;
+    __device__ virtual int getValuationIdx() const = 0;
 
     __device__ inline volatile real* getQs()
     {
         return (real *)&sh_mem;
     }
 
-    __device__ inline volatile int32_t* getOptionInds()
+    __device__ inline volatile int32_t* getValuationInds()
     {
         return (int32_t *)&sh_mem;  // Sharing the same array with Qs!
     }
 
-    __device__ inline volatile uint16_t* getOptionFlags()
+    __device__ inline volatile uint16_t* getValuationFlags()
     {
         return (uint16_t *)&sh_mem[blockDim.x * sizeof(real)];
     }
@@ -62,37 +62,37 @@ public:
 
     __device__ inline volatile real* getDts()
     {
-        return (real *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t)) + values.maxOptionsBlock * sizeof(real)];
+        return (real *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * sizeof(real)];
     }
 
     __device__ inline volatile real* getQexps()
     {
-        return (real *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t)) + values.maxOptionsBlock * 2 * sizeof(real)];
+        return (real *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 2 * sizeof(real)];
     }
 
     __device__ inline volatile uint16_t* getNs()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t)) + values.maxOptionsBlock * 3 * sizeof(real)];
+        return (uint16_t *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 3 * sizeof(real)];
     }
 
     __device__ inline volatile uint16_t* getTermUnits()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t)) + values.maxOptionsBlock * (3 * sizeof(real) + sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + sizeof(uint16_t))];
     }
 };
 
 template<class KernelArgsT>
-__global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valuations, KernelArgsT args)
+__global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations valuations, KernelArgsT args)
 {
-    // Compute option indices
+    // Compute valuation indices
     const auto idxBlock = blockIdx.x == 0 ? 0 : args.values.inds[blockIdx.x - 1];
     const auto idxBlockNext = args.values.inds[blockIdx.x];
     const auto idx = idxBlock + threadIdx.x;
     int32_t width; 
-    if (idx < idxBlockNext)    // Don't fetch options from next block
+    if (idx < idxBlockNext)    // Don't fetch valuations from next block
     {
         width = valuations.Widths[idx];
-        args.getOptionInds()[threadIdx.x] = width;
+        args.getValuationInds()[threadIdx.x] = width;
 
         auto termUnits = valuations.TermUnits[idx];
         args.getTermUnits()[threadIdx.x] = termUnits;
@@ -103,56 +103,56 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
     }
     else
     {
-        args.getOptionInds()[threadIdx.x] = 0;
+        args.getValuationInds()[threadIdx.x] = 0;
     }
-    args.getOptionFlags()[threadIdx.x] = threadIdx.x == 0 ? blockDim.x : 0;
+    args.getValuationFlags()[threadIdx.x] = threadIdx.x == 0 ? blockDim.x : 0;
     __syncthreads();
 
     // Scan widths
-    // TODO: maybe use scanIncBlock<Add<int32_t>>(args.getOptionInds());
-    sgmScanIncBlock<Add<int32_t>>(args.getOptionInds(), args.getOptionFlags());
+    // TODO: maybe use scanIncBlock<Add<int32_t>>(args.getValuationInds());
+    sgmScanIncBlock<Add<int32_t>>(args.getValuationInds(), args.getValuationFlags());
     
     int scannedWidthIdx = -1;
     if (idx <= idxBlockNext)
     {
-        scannedWidthIdx = threadIdx.x == 0 ? 0 : args.getOptionInds()[threadIdx.x - 1];
+        scannedWidthIdx = threadIdx.x == 0 ? 0 : args.getValuationInds()[threadIdx.x - 1];
     }
     __syncthreads();
 
-    // Send option indices to all threads
-    args.getOptionInds()[threadIdx.x] = 0;
-    args.getOptionFlags()[threadIdx.x] = 0;
+    // Send valuation indices to all threads
+    args.getValuationInds()[threadIdx.x] = 0;
+    args.getValuationFlags()[threadIdx.x] = 0;
     __syncthreads();
 
     if (idx < idxBlockNext)
     {
-        args.getOptionInds()[scannedWidthIdx] = threadIdx.x;
-        args.getOptionFlags()[scannedWidthIdx] = width;
+        args.getValuationInds()[scannedWidthIdx] = threadIdx.x;
+        args.getValuationFlags()[scannedWidthIdx] = width;
     }
-    else if (idx == idxBlockNext && scannedWidthIdx < blockDim.x) // fake option to fill block
+    else if (idx == idxBlockNext && scannedWidthIdx < blockDim.x) // fake valuation to fill block
     {
-        args.getOptionInds()[scannedWidthIdx] = threadIdx.x;
-        args.getOptionFlags()[scannedWidthIdx] = blockDim.x - scannedWidthIdx;
+        args.getValuationInds()[scannedWidthIdx] = threadIdx.x;
+        args.getValuationFlags()[scannedWidthIdx] = blockDim.x - scannedWidthIdx;
     }
     __syncthreads();
 
-    sgmScanIncBlock<Add<int32_t>>(args.getOptionInds(), args.getOptionFlags());
+    sgmScanIncBlock<Add<int32_t>>(args.getValuationInds(), args.getValuationFlags());
 
     // Let all threads know about their Q start
     if (idx <= idxBlockNext)
     {
-        args.getOptionFlags()[threadIdx.x] = scannedWidthIdx;
+        args.getValuationFlags()[threadIdx.x] = scannedWidthIdx;
     }
     __syncthreads();
-    auto optIdx = args.getOptionInds()[threadIdx.x];
-    scannedWidthIdx = args.getOptionFlags()[optIdx];
+    auto optIdx = args.getValuationInds()[threadIdx.x];
+    scannedWidthIdx = args.getValuationFlags()[optIdx];
 
-    // Get the option and compute its constants
+    // Get the valuation and compute its constants
     ValuationConstants c;
     args.init(optIdx, idxBlock, idxBlockNext, valuations.ValuationCount);
-    if (args.getOptionIdx() < idxBlockNext)
+    if (args.getValuationIdx() < idxBlockNext)
     {
-        computeConstants(c, valuations, args.getOptionIdx());
+        computeConstants(c, valuations, args.getValuationIdx());
     }
     else
     {
@@ -168,11 +168,11 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
         auto alpha = interpolateRateAtTimeStep(args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
         args.getAlphas()[threadIdx.x] = alpha;
         //if (idx == 2)
-        //    printf("0 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
-        //        0, alpha, args.getAlphaAt(0, idx), args.getAlphas()[threadIdx.x], args.getOptionIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x, 0.0, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], args.getNs()[threadIdx.x], optIdx);
+        //    printf("0 %d alpha %f alpha g %f alpha sh %f ValuationIdx %d ValuationInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
+        //        0, alpha, args.getAlphaAt(0, idx), args.getAlphas()[threadIdx.x], args.getValuationIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x, 0.0, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], args.getNs()[threadIdx.x], optIdx);
     }
     __syncthreads();
-    if (args.getOptionIdx() < idxBlockNext && threadIdx.x == scannedWidthIdx + c.jmax)
+    if (args.getValuationIdx() < idxBlockNext && threadIdx.x == scannedWidthIdx + c.jmax)
     {
         args.setAlphaAt(0, args.getAlphas()[optIdx], optIdx);
         args.getQs()[threadIdx.x] = 1;    // Set starting Qs to 1$
@@ -190,9 +190,9 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
         {
             const real alpha = args.getAlphas()[optIdx];
             if (threadIdx.x == scannedWidthIdx + c.jmax) args.setAlphaAt(i-1, alpha, optIdx);
-            //if (args.getOptionIdx() == 2 && threadIdx.x == scannedWidthIdx + c.jmax)
-            //    printf("1 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
-            //        i - 1, alpha, args.getAlphaAt(i - 1, optIdx), args.getAlphas()[optIdx], args.getOptionIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x,  0.0, c.dt, c.termUnit, c.n,  optIdx);
+            //if (args.getValuationIdx() == 2 && threadIdx.x == scannedWidthIdx + c.jmax)
+            //    printf("1 %d alpha %f alpha g %f alpha sh %f ValuationIdx %d ValuationInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d  Qexp %f dt %f termUnit %d n %d  optIdx %d\n",
+            //        i - 1, alpha, args.getAlphaAt(i - 1, optIdx), args.getAlphas()[optIdx], args.getValuationIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x,  0.0, c.dt, c.termUnit, c.n,  optIdx);
 
             args.getQs()[threadIdx.x] *= exp(-(alpha + j * c.dr) * c.dt);
         }
@@ -263,12 +263,12 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
         __syncthreads();
 
         // Repopulate flags
-        args.getOptionFlags()[threadIdx.x] = threadIdx.x == scannedWidthIdx ? c.width : 0;
+        args.getValuationFlags()[threadIdx.x] = threadIdx.x == scannedWidthIdx ? c.width : 0;
         __syncthreads();
         
         // Determine the new alpha using equation 30.22
         // by summing up Qs from the next time step
-        real Qexp = sgmScanIncBlock<Add<real>>(args.getQs(), args.getOptionFlags());
+        real Qexp = sgmScanIncBlock<Add<real>>(args.getQs(), args.getValuationFlags());
         if (i <= c.n && threadIdx.x == scannedWidthIdx + c.width - 1)
         {
             args.getQexps()[optIdx] = Qexp;
@@ -280,8 +280,8 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
             //auto alpha = computeAlpha(args.getQexps()[threadIdx.x], i - 1, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], valuations.YieldPrices, valuations.YieldTimeSteps, valuations.YieldSize, &lastIdx);
             //args.getAlphas()[threadIdx.x] = alpha;
             //if (idx == 2)
-            //    printf("2 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
-            //        i, alpha, args.getAlphaAt(i, idx), args.getAlphas()[threadIdx.x], args.getOptionIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x, args.getQexps()[threadIdx.x], args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], args.getNs()[threadIdx.x], optIdx);
+            //    printf("2 %d alpha %f alpha g %f alpha sh %f ValuationIdx %d ValuationInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
+            //        i, alpha, args.getAlphaAt(i, idx), args.getAlphas()[threadIdx.x], args.getValuationIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x, args.getQexps()[threadIdx.x], args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], args.getNs()[threadIdx.x], optIdx);
         }
 
         //__syncthreads();
@@ -290,9 +290,9 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
         //    real alpha = computeAlpha(Qexp, i-1, c.dt, c.termUnit, valuations.YieldPrices, valuations.YieldTimeSteps, valuations.YieldSize, &lastIdx);
         //    args.setAlphaAt(i, alpha, optIdx);
         //    args.getAlphas()[optIdx] = alpha;
-        //    //if (args.getOptionIdx() == 1)
-        //    //    printf("2 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
-        //    //        i, alpha, args.getAlphaAt(i, optIdx), args.getAlphas()[optIdx], args.getOptionIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x, Qexp, c.dt, c.termUnit, c.n, optIdx);
+        //    //if (args.getValuationIdx() == 1)
+        //    //    printf("2 %d alpha %f alpha g %f alpha sh %f ValuationIdx %d ValuationInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
+        //    //        i, alpha, args.getAlphaAt(i, optIdx), args.getAlphas()[optIdx], args.getValuationIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x, Qexp, c.dt, c.termUnit, c.n, optIdx);
         //}
         args.getQs()[threadIdx.x] = Q;
         __syncthreads();
@@ -313,9 +313,9 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
         if (i < c.n && j >= -jhigh && j <= jhigh)
         {
             const auto alpha = args.getAlphaAt(i, optIdx);
-            //if (args.getOptionIdx() == 2 && threadIdx.x == scannedWidthIdx + c.jmax)
-            //    printf("3 %d alpha %f alpha g %f alpha sh %f OptionIdx %d OptionInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
-            //        i, alpha, args.getAlphaAt(i, optIdx), args.getAlphas()[optIdx], args.getOptionIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x, 0.0, c.dt, c.termUnit, c.n,  optIdx);
+            //if (args.getValuationIdx() == 2 && threadIdx.x == scannedWidthIdx + c.jmax)
+            //    printf("3 %d alpha %f alpha g %f alpha sh %f ValuationIdx %d ValuationInBlockIdx %d idxBlock %d idxBlockNext %d idx %d scannedWidthIdx %d threadIdx %d Qexp %f dt %f termUnit %d n %d optIdx %d\n",
+            //        i, alpha, args.getAlphaAt(i, optIdx), args.getAlphas()[optIdx], args.getValuationIdx(), optIdx, idxBlock, idxBlockNext, idx, scannedWidthIdx, threadIdx.x, 0.0, c.dt, c.termUnit, c.n,  optIdx);
 
             const auto isMaturity = true;
             const auto callExp = exp(-(alpha + j * c.dr) * c.dt);
@@ -355,10 +355,10 @@ __global__ void kernelMultipleOptionsPerThreadBlock(const KernelValuations valua
         __syncthreads();
     }
     
-    if (args.getOptionIdx() < idxBlockNext && threadIdx.x == scannedWidthIdx + c.jmax)
+    if (args.getValuationIdx() < idxBlockNext && threadIdx.x == scannedWidthIdx + c.jmax)
     {
-        args.values.res[args.getOptionIdx()] = args.getQs()[threadIdx.x];
-        //if (args.getOptionIdx() == 2) printf("res: %f\n", args.getQs()[threadIdx.x]);
+        args.values.res[args.getValuationIdx()] = args.getQs()[threadIdx.x];
+        //if (args.getValuationIdx() == 2) printf("res: %f\n", args.getQs()[threadIdx.x]);
     }
 }
 
@@ -376,9 +376,9 @@ protected:
 
     template<class KernelArgsT, class KernelArgsValuesT>
     void runKernel(CudaValuations &valuations, std::vector<real> &results, thrust::device_vector<int32_t> &inds,
-        KernelArgsValuesT &values, const int totalAlphasCount, const int maxOptionsBlock)
+        KernelArgsValuesT &values, const int totalAlphasCount, const int maxValuationsBlock)
     {
-        const int sharedMemorySize = (sizeof(real) + sizeof(uint16_t)) * BlockSize + (3*sizeof(real) + 2*sizeof(uint16_t)) * maxOptionsBlock;
+        const int sharedMemorySize = (sizeof(real) + sizeof(uint16_t)) * BlockSize + (3*sizeof(real) + 2*sizeof(uint16_t)) * maxValuationsBlock;
         thrust::device_vector<real> alphas(totalAlphasCount);
         thrust::device_vector<real> result(valuations.ValuationCount);
 
@@ -395,7 +395,7 @@ protected:
             #else
             " float"
             #endif
-            << " options with block size " << BlockSize << std::endl;
+            << " valuations with block size " << BlockSize << std::endl;
             std::cout << "Shared memory size " << sharedMemorySize << ", alphas count " << totalAlphasCount << std::endl;
             std::cout << "Global memory size " << valuations.DeviceMemory / (1024.0 * 1024.0) << " MB" << std::endl;
 
@@ -408,11 +408,11 @@ protected:
         values.res = thrust::raw_pointer_cast(result.data());
         values.alphas = thrust::raw_pointer_cast(alphas.data());
         values.inds = thrust::raw_pointer_cast(inds.data());
-        values.maxOptionsBlock = maxOptionsBlock;
+        values.maxValuationsBlock = maxValuationsBlock;
         KernelArgsT kernelArgs(values);
 
         auto time_begin_kernel = std::chrono::steady_clock::now();
-        kernelMultipleOptionsPerThreadBlock<<<inds.size(), BlockSize, sharedMemorySize>>>(valuations.KernelValuations, kernelArgs);
+        kernelMultipleValuationsPerThreadBlock<<<inds.size(), BlockSize, sharedMemorySize>>>(valuations.KernelValuations, kernelArgs);
         cudaDeviceSynchronize();
         auto time_end_kernel = std::chrono::steady_clock::now();
         runtime.KernelRuntime = std::chrono::duration_cast<std::chrono::microseconds>(time_end_kernel - time_begin_kernel).count();
@@ -468,7 +468,7 @@ public:
         if (maxWidth > BlockSize)
         {
             std::ostringstream oss;
-            oss << "Block size (" << BlockSize << ") cannot be smaller than max option width (" << maxWidth << ").";
+            oss << "Block size (" << BlockSize << ") cannot be smaller than max valuation width (" << maxWidth << ").";
             throw std::invalid_argument(oss.str());
         }
 

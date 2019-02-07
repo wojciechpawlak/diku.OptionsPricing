@@ -16,7 +16,7 @@ struct KernelArgsValuesNaive
     real *alphas;
     int32_t *inds;
     int32_t maxHeight;
-    int32_t maxOptionsBlock;
+    int32_t maxValuationsBlock;
 };
 
 class KernelArgsNaive : public KernelArgsBase<KernelArgsValuesNaive>
@@ -24,29 +24,29 @@ class KernelArgsNaive : public KernelArgsBase<KernelArgsValuesNaive>
 
 private:
     
-    int optionIdx;
-    int optionCount;
-    int optionCountBlock;
+    int valuationIdx;
+    int valuationCount;
+    int valuationCountBlock;
 
 public:
 
     KernelArgsNaive(KernelArgsValuesNaive &v) : KernelArgsBase(v) { }
 
-    __device__ inline void init(const int optionIdxBlock, const int idxBlock, const int idxBlockNext, const int optionCount)
+    __device__ inline void init(const int valuationIdxBlock, const int idxBlock, const int idxBlockNext, const int valuationCount)
     {
-        this->optionIdx = idxBlock + optionIdxBlock;
-        this->optionCount = optionCount;
-        this->optionCountBlock = idxBlockNext - idxBlock;
+        this->valuationIdx = idxBlock + valuationIdxBlock;
+        this->valuationCount = valuationCount;
+        this->valuationCountBlock = idxBlockNext - idxBlock;
     }
 
-    __device__ inline void setAlphaAt(const int index, const real value, const int optionIndex = 0) override
+    __device__ inline void setAlphaAt(const int index, const real value, const int valuationIndex = 0) override
     {
-        values.alphas[values.maxHeight * optionIdx + index] = value;
+        values.alphas[values.maxHeight * valuationIdx + index] = value;
     }
 
-    __device__ inline real getAlphaAt(const int index, const int optionIndex = 0) const override
+    __device__ inline real getAlphaAt(const int index, const int valuationIndex = 0) const override
     {
-        return values.alphas[values.maxHeight * optionIdx + index];
+        return values.alphas[values.maxHeight * valuationIdx + index];
     }
 
     __device__ inline int getMaxHeight() const override
@@ -54,9 +54,9 @@ public:
         return values.maxHeight;
     }
 
-    __device__ inline int getOptionIdx() const override
+    __device__ inline int getValuationIdx() const override
     {
-        return optionIdx;
+        return valuationIdx;
     }
 };
 
@@ -72,7 +72,7 @@ protected:
 
         auto counter = 0;
         auto prevInd = 0;
-        auto maxOptionsBlock = 0;
+        auto maxValuationsBlock = 0;
         for (auto i = 0; i < valuations.ValuationCount; ++i)
         {
             auto w = hostWidths[i];
@@ -82,18 +82,18 @@ protected:
                 hInds.push_back(i);
                 counter = w;
 
-                auto optionsBlock = i - prevInd;
-                if (optionsBlock > maxOptionsBlock) {
-                    maxOptionsBlock = optionsBlock;
+                auto valuationsBlock = i - prevInd;
+                if (valuationsBlock > maxValuationsBlock) {
+                    maxValuationsBlock = valuationsBlock;
                 }
                 prevInd = i;
             }
         }
         hInds.push_back(valuations.ValuationCount);
 
-        auto optionsBlock = valuations.ValuationCount - prevInd;
-        if (optionsBlock > maxOptionsBlock) {
-            maxOptionsBlock = optionsBlock;
+        auto valuationsBlock = valuations.ValuationCount - prevInd;
+        if (valuationsBlock > maxValuationsBlock) {
+            maxValuationsBlock = valuationsBlock;
         }
 
         thrust::device_vector<int32_t> dInds = hInds;
@@ -104,7 +104,7 @@ protected:
         values.maxHeight = thrust::max_element(valuations.Heights.begin(), valuations.Heights.end())[0];
         const int totalAlphasCount = valuations.ValuationCount * values.maxHeight;
 
-        runKernel<KernelArgsNaive>(valuations, results, dInds, values, totalAlphasCount, maxOptionsBlock);
+        runKernel<KernelArgsNaive>(valuations, results, dInds, values, totalAlphasCount, maxValuationsBlock);
     }
 };
 

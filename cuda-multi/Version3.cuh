@@ -16,7 +16,7 @@ struct KernelArgsValuesCoalescedBlock
     real *alphas;
     int32_t *inds;
     int32_t *alphaInds;
-    int32_t maxOptionsBlock;
+    int32_t maxValuationsBlock;
 };
 
 class KernelArgsCoalescedBlock : public KernelArgsBase<KernelArgsValuesCoalescedBlock>
@@ -24,8 +24,8 @@ class KernelArgsCoalescedBlock : public KernelArgsBase<KernelArgsValuesCoalesced
 
 private:
 
-    int optionIdx;
-    int optionCountBlock;
+    int valuationIdx;
+    int valuationCountBlock;
     int alphaIdx;
     int alphaIdxBlock;
     int maxHeight;
@@ -34,23 +34,23 @@ public:
 
     KernelArgsCoalescedBlock(KernelArgsValuesCoalescedBlock &v) : KernelArgsBase(v) { }
     
-    __device__ inline void init(const int optionIdxBlock, const int idxBlock, const int idxBlockNext, const int optionCount)
+    __device__ inline void init(const int valuationIdxBlock, const int idxBlock, const int idxBlockNext, const int valuationCount)
     {
-        optionIdx = idxBlock + optionIdxBlock;
-        optionCountBlock = idxBlockNext - idxBlock;
+        valuationIdx = idxBlock + valuationIdxBlock;
+        valuationCountBlock = idxBlockNext - idxBlock;
         alphaIdxBlock = (blockIdx.x == 0 ? 0 : values.alphaInds[blockIdx.x - 1]);
-        maxHeight = (values.alphaInds[blockIdx.x] - alphaIdxBlock) / optionCountBlock;
-        alphaIdx = alphaIdxBlock + optionIdxBlock;
+        maxHeight = (values.alphaInds[blockIdx.x] - alphaIdxBlock) / valuationCountBlock;
+        alphaIdx = alphaIdxBlock + valuationIdxBlock;
     }
 
-    __device__ inline void setAlphaAt(const int index, const real value, const int optionIndex = 0) override
+    __device__ inline void setAlphaAt(const int index, const real value, const int valuationIndex = 0) override
     {
-        values.alphas[optionCountBlock * index + alphaIdxBlock + optionIndex] = value;
+        values.alphas[valuationCountBlock * index + alphaIdxBlock + valuationIndex] = value;
     }
 
-    __device__ inline real getAlphaAt(const int index, const int optionIndex = 0) const override
+    __device__ inline real getAlphaAt(const int index, const int valuationIndex = 0) const override
     {
-        return values.alphas[optionCountBlock * index + alphaIdxBlock + optionIndex];
+        return values.alphas[valuationCountBlock * index + alphaIdxBlock + valuationIndex];
     }
 
     __device__ inline int getMaxHeight() const override
@@ -58,9 +58,9 @@ public:
         return maxHeight;
     }
 
-    __device__ inline int getOptionIdx() const override
+    __device__ inline int getValuationIdx() const override
     {
-        return optionIdx;
+        return valuationIdx;
     }
 };
 
@@ -79,7 +79,7 @@ protected:
         auto counter = 0;
         auto maxHeightBlock = 0;
         auto prevInd = 0;
-        auto maxOptionsBlock = 0;
+        auto maxValuationsBlock = 0;
         for (auto i = 0; i < valuations.ValuationCount; ++i)
         {
             auto w = hostWidths[i];
@@ -94,9 +94,9 @@ protected:
                 counter = w;
                 maxHeightBlock = 0;
 
-                auto optionsBlock = i - prevInd;
-                if (optionsBlock > maxOptionsBlock) {
-                    maxOptionsBlock = optionsBlock;
+                auto valuationsBlock = i - prevInd;
+                if (valuationsBlock > maxValuationsBlock) {
+                    maxValuationsBlock = valuationsBlock;
                 }
                 prevInd = i;
             }
@@ -108,9 +108,9 @@ protected:
         hAlphaInds.push_back((hAlphaInds.empty() ? 0 : hAlphaInds.back()) + alphasBlock);
         hInds.push_back(valuations.ValuationCount);
 
-        auto optionsBlock = valuations.ValuationCount - prevInd;
-        if (optionsBlock > maxOptionsBlock) {
-            maxOptionsBlock = optionsBlock;
+        auto valuationsBlock = valuations.ValuationCount - prevInd;
+        if (valuationsBlock > maxValuationsBlock) {
+            maxValuationsBlock = valuationsBlock;
         }
 
         thrust::device_vector<int32_t> dInds = hInds;
@@ -122,7 +122,7 @@ protected:
 
         valuations.DeviceMemory += vectorsizeof(dAlphaInds);
 
-        runKernel<KernelArgsCoalescedBlock>(valuations, results, dInds, values, totalAlphasCount, maxOptionsBlock);
+        runKernel<KernelArgsCoalescedBlock>(valuations, results, dInds, values, totalAlphasCount, maxValuationsBlock);
     }
 };
 

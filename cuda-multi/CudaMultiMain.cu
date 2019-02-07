@@ -39,7 +39,7 @@ const int blockSize, const SortType sortType, const int runs, const bool isTest)
 {
     if (isTest)
     {
-        cout << "Cuda multiple options per thread block version " << version << endl;
+        cout << "Cuda multiple valuations per thread-block version " << version << endl;
     }
 
     if (runs > 0)
@@ -87,10 +87,10 @@ int main(int argc, char *argv[])
 
     if (args.test)
     {
-        cout << "Loading options " << args.valuations << endl;
+        cout << "Loading valuations " << args.valuations << endl;
     }
 
-    // Read options and yield curve.
+    // Read valuations and yield curve.
     Valuations valuations(args.valuations);
 
     // Initialize cuda device.
