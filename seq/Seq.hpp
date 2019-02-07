@@ -57,14 +57,17 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     auto alphas = new real[c.n + 1](); // alphas[i]
     int lastUsedYCTermIdx = 0;
     alphas[0] = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx); // initial dt-period interest rate
+#ifdef DEV
     printf("0 %d alpha %f \n", 0, alphas[0]);
-
+#endif
 
     for (auto i = 0; i < c.n; ++i)
     {
         auto jhigh = MIN(i, c.jmax);
         auto alpha = alphas[i];
+#ifdef DEV
         printf("1 %d alpha %f \n", i, alpha);
+#endif
 
         // Forward iteration step, compute Qs in the next time step
         for (auto j = -jhigh; j <= jhigh; ++j)
@@ -108,7 +111,9 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         }
 
         alphas[i + 1] = computeAlpha(aggregatedQs, i, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
+#ifdef DEV
         printf("2 %d alpha %f \n", i+1, alphas[i + 1]);
+#endif
         // Switch Qs
         auto QsT = Qs;
         Qs = QsCopy;
@@ -121,7 +126,9 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     auto priceCopy = QsCopy;
 
     auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+#ifdef DEV
     printf("%d: %d %f %f %d\n", idx, lastUsedCIdx, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
+#endif
     std::fill_n(price, c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
     auto lastUsedCStep = valuations.CashflowSteps[--lastUsedCIdx];
 
@@ -129,7 +136,9 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     {
         auto jhigh = MIN(i, c.jmax);
         auto alpha = alphas[i];
+#ifdef DEV
         printf("3 %d alpha %f \n", i, alpha);
+#endif
         const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastUsedCStep - i) % c.ExerciseStepFrequency == 0;
 
         // add coupon and repayments
@@ -150,7 +159,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         {
             auto jind = j - jmin;      // array index for j
             auto jval = jvalues[jind]; // precomputed probabilities and rates
-            auto discFactor = exp(-(alpha + jval.rate) * c.dt);
+            auto discFactor = exp(-(alpha + jval.rate) * c.dt) * c.expmOasdt;
 
             real res;
             if (j == c.jmax)
@@ -191,7 +200,9 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     }
 
     auto result = price[c.jmax];
+#ifdef DEV
     printf("res: %f\n", result);
+#endif
     delete[] jvalues;
     delete[] alphas;
     delete[] Qs;

@@ -61,11 +61,15 @@ struct ValuationConstants
         jmax = (int)(minus184 / M) + 1;
         width = 2 * jmax + 1;
 
-        expmOasdt = exp(-(valuations.Spreads[idx] / hundred)*dt); // scale down
+        expmOasdt = exp(-(valuations.Spreads[idx] / hundred)*dt);
 
         //assert(valuations.YieldCurveIndices != NULL);
         //assert(valuations.CashflowIndices != NULL);
         firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
+
+        LastExerciseStep = valuations.LastExerciseSteps[idx];
+        FirstExerciseStep = valuations.FirstExerciseSteps[idx];
+        ExerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
 
         firstYieldCurveRate = &valuations.YieldCurveRates[firstYCTermIdx];
         firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[firstYCTermIdx];

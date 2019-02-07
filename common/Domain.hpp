@@ -3,6 +3,9 @@
 
 #include "CudaInterop.h"
 
+//#define DEV
+#define PRINT_IDX 17
+
 namespace trinom
 {
 

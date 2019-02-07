@@ -4,8 +4,6 @@
 #include "../cuda/CudaDomain.cuh"
 
 #define DEFAULT_BLOCK_SIZE 256
-#define PRINT_IDX 4
-#define DEV
 
 using namespace trinom;
 
@@ -244,7 +242,9 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     // Backward propagation
     // TODO Find out how to handle oas spread
     auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+#ifdef DEV
     printf("%d: %d %f %f %d\n", idx, lastUsedCIdx, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
+#endif
     args.fillQs(c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
     auto lastUsedCStep = valuations.CashflowSteps[--lastUsedCIdx];
 
