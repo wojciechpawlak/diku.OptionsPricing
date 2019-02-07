@@ -81,7 +81,7 @@ public:
         case 3:
             return pds[index]; // down
         }
-        return 0;
+        return zero;
     }
 
     __device__ inline void setPAt(const int index, const int branch, const real value) override

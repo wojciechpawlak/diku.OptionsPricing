@@ -21,9 +21,7 @@ struct KernelArgsValuesCoalescedBlock
 
 class KernelArgsCoalescedBlock : public KernelArgsBase<KernelArgsValuesCoalescedBlock>
 {
-
 private:
-
     int valuationIdx;
     int valuationCountBlock;
     int alphaIdx;
@@ -31,7 +29,6 @@ private:
     int maxHeight;
 
 public:
-
     KernelArgsCoalescedBlock(KernelArgsValuesCoalescedBlock &v) : KernelArgsBase(v) { }
     
     __device__ inline void init(const int valuationIdxBlock, const int idxBlock, const int idxBlockNext, const int valuationCount)

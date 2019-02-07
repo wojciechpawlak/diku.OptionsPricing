@@ -12,7 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="CudaMultiMain.cu" />
-
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Kernel.cuh" />

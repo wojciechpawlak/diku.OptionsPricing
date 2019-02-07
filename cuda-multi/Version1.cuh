@@ -21,21 +21,16 @@ struct KernelArgsValuesNaive
 
 class KernelArgsNaive : public KernelArgsBase<KernelArgsValuesNaive>
 {
-
 private:
-    
     int valuationIdx;
-    int valuationCount;
     int valuationCountBlock;
 
 public:
-
     KernelArgsNaive(KernelArgsValuesNaive &v) : KernelArgsBase(v) { }
 
     __device__ inline void init(const int valuationIdxBlock, const int idxBlock, const int idxBlockNext, const int valuationCount)
     {
         this->valuationIdx = idxBlock + valuationIdxBlock;
-        this->valuationCount = valuationCount;
         this->valuationCountBlock = idxBlockNext - idxBlock;
     }
 

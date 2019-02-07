@@ -21,15 +21,12 @@ struct KernelArgsValuesCoalesced
 
 class KernelArgsCoalesced : public KernelArgsBase<KernelArgsValuesCoalesced>
 {
-
 private:
-
     int valuationIdx;
     int valuationCount;
     int valuationCountBlock;
 
 public:
-
     KernelArgsCoalesced(KernelArgsValuesCoalesced &v) : KernelArgsBase(v) { }
     
     __device__ inline void init(const int valuationIdxBlock, const int idxBlock, const int idxBlockNext, const int valuationCount)
