@@ -3,13 +3,13 @@
 
 #include "CudaInterop.h"
 
-//#define DEV
-#define PRINT_IDX 17
+#define DEV
+#define PRINT_IDX 0
 
 namespace trinom
 {
 
-DEVICE inline real interpolateRateAtTimeStep(const real t, const int termUnit, const real *rates, const uint16_t *termSteps, const uint16_t size, int *lastUsedTermIdx)
+DEVICE inline real interpolateRateAtTimeStep(const real t, const int termUnit, const real *rates, const uint16_t *termSteps, const uint16_t size, volatile uint16_t *lastUsedTermIdx)
 {
     const int tDays = (int)ROUND(t * termUnit);
     auto first = 0;
@@ -97,7 +97,7 @@ DEVICE inline real PD_C(int j, real M)
     return one / six + (j * j * M * M + j * M) * half;
 }
 
-DEVICE inline real computeAlpha(const real aggregatedQs, const int i, const real dt, const int termUnit, const real *prices, const uint16_t *timeSteps, const int size, int *lastIdx)
+DEVICE inline real computeAlpha(const real aggregatedQs, const int i, const real dt, const int termUnit, const real *prices, const uint16_t *timeSteps, const int size, volatile uint16_t *lastIdx)
 {
     auto ti = (i + 2) * dt;
     auto R = interpolateRateAtTimeStep(ti, termUnit, prices, timeSteps, size, lastIdx); // discount rate
