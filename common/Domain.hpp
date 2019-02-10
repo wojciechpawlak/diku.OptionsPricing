@@ -5,6 +5,7 @@
 
 #define DEV
 #define PRINT_IDX 0
+#define PRINT_ITER 11
 
 namespace trinom
 {
