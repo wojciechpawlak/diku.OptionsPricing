@@ -1,4 +1,5 @@
-CXX        	= g++ -std=c++11 -O3 -fopenmp #-g
+SHELL = sh -xv
+CXX        	= g++ -std=c++14 -O3 -fopenmp -I /usr/local/cuda-10.0/targets/x86_64-linux/include/ #-g
 
 SOURCES_CPP = SeqMain.cpp
 EXECUTABLE  = ../build/Seq

@@ -3,7 +3,7 @@
 
 #include "CudaInterop.h"
 
-#define DEV
+//#define DEV
 #define PRINT_IDX 0
 #define PRINT_ITER 11
 
@@ -156,7 +156,7 @@ DEVICE inline real computeAccruedInterest(const uint16_t termStepCounts, const i
     return (couponsTimeDiff - (real)eventsTimeDiff) / couponsTimeDiff * nextCoupon;
 }
 
-DEVICE inline real getOptionPayoff(bool isExerciseStep, const real strike, const OptionType type, const real bondPrice, const real ai)
+DEVICE inline real getOptionPayoff(bool isExerciseStep, const real strike, const OptionTypeE type, const real bondPrice, const real ai)
 {
     real ret = bondPrice;
     if (isExerciseStep)
@@ -164,11 +164,11 @@ DEVICE inline real getOptionPayoff(bool isExerciseStep, const real strike, const
         const real exercisePrice = strike + ai;
         switch (type)
         {
-        case OptionType::CALL_VANILLA:
+        case OptionTypeE::CALL_VANILLA:
             //ret = MAX(bondPrice - X, zero); // Call Option
             ret = bondPrice > exercisePrice ? exercisePrice : bondPrice; // Call on a bond (embedded)
             break;
-        case OptionType::PUT_VANILLA:
+        case OptionTypeE::PUT_VANILLA:
             //ret = MAX(X - bondPrice, zero);
             ret = exercisePrice > bondPrice ? exercisePrice : bondPrice; // Put on a bond (embedded)
             break;

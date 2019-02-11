@@ -2,8 +2,7 @@ CXX	= nvcc
 CPP	= g++ 
 NVCC_FLAGS := $(ARCHS) --std=c++11 -m64 --expt-extended-lambda -Xcompiler '-O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp'
 GCC_FLAGS := -O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp
-ARCHS := -gencode arch=compute_70,code=sm_70 \
-				-gencode arch=compute_35,code=sm_35
+ARCHS := -gencode arch=compute_70,code=sm_70
 
 SOURCES_CPP = TestMain.cpp TestCuda.cu
 EXECUTABLE  = ../build/Test

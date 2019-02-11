@@ -23,7 +23,7 @@ struct ValuationConstants
     int32_t width;
     uint16_t termUnit;
     uint16_t termStepCount;
-    OptionType type; // char
+    OptionTypeE type; // char
 
     uint16_t firstYCTermIdx;
 

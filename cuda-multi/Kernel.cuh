@@ -245,7 +245,7 @@ namespace cuda
             ValuationConstants c;
             args.init(valLIdx, firstValGIdxBlock, firstValGIdxBlockNext, valuations.ValuationCount);
             valGIdx = args.getValuationIdx();
-#ifdef DEV1
+#ifdef DEV
             //if (valGIdx != 0 && valGIdx != 1) return;
             if (valGIdx != PRINT_IDX) return;
 #endif
@@ -509,7 +509,7 @@ namespace cuda
                 if (idx < firstValGIdxBlockNext && i == args.getLastCStep()[valLIdx] - 1)
                 {
                     auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
-                    args.getLastCStep()[threadIdx.x] = (lastUsedCIdx >= 0) ? valuations.CashflowSteps[lastUsedCIdx] : 0;
+                    args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
                 }
                 __syncthreads();
 
@@ -559,19 +559,20 @@ namespace cuda
 
                     // calculate accrued interest from cashflow
                     ai = isExerciseStep && args.getLastCStep()[valLIdx] != 0 ? computeAccruedInterest(0, i, args.getLastCStep()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIdx()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIdx()[valLIdx]]) : zero;
-
+#ifdef DEV
                     if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx && i == args.getLastCStep()[valLIdx])
                     {
                         printf("%d %d: ai %f lastCStep %d nextCStep %d coupon %f lastUsedCIdx %d\n", valGIdx, i, ai, args.getLastCStep()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIdx()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIdx()[valLIdx]], args.getLastUsedCIdx()[valLIdx]);
                     }
-
+#endif
                     // after obtaining the result from (i+1) nodes, set the call for ith node
                     price = getOptionPayoff(isExerciseStep, c.X, c.type, res, ai);
-
+#ifdef DEV
                     if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx && isExerciseStep)
                     {
                         printf("%d %d: ai %f lastCStep %d isExerciseStep %d res %f price %f\n", valGIdx, i, ai, args.getLastCStep()[valLIdx], isExerciseStep, res, price);
                     }
+#endif
                 }
                 __syncthreads();
 

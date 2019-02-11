@@ -1,10 +1,10 @@
+SHELL = sh -xv
 CXX        	  = nvcc 
 DEBUG_OPTIONS = -G -DCUDA_ERROR_CHECK
 
-NVCC_FLAGS := $(ARCHS) --std=c++11 -m64 --expt-extended-lambda #--ptxas-options=-v
-GCC_FLAGS := -Xcompiler '-O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp'
-ARCHS := -gencode arch=compute_70,code=sm_70 \
-		-gencode arch=compute_35,code=sm_35
+ARCHS := -gencode arch=compute_70,code=sm_70
+NVCC_FLAGS := $(ARCHS) --std=c++14 -m64 --expt-extended-lambda -Xptxas=-v
+GCC_FLAGS := -Xcompiler '-O3 -Wall -Wextra -std=c++14 -fPIC -m64 -fopenmp'
 
 SOURCES_CPP = CudaOptionMain.cu
 EXECUTABLE  = ../build/CudaOption

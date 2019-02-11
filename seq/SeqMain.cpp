@@ -1,6 +1,9 @@
+#include <algorithm>
 #include <chrono>
 #include <limits>
 #include <numeric>
+
+#include <thrust/scan.h>
 
 #include "../common/Args.hpp"
 #include "../common/Arrays.hpp"
@@ -17,8 +20,8 @@ void computeAllOptions(const Args &args)
 
     valuations.CashflowIndices.resize(valuations.ValuationCount);
     valuations.YieldCurveTermIndices.resize(valuations.ValuationCount);
-    std::exclusive_scan(valuations.Cashflows.begin(), valuations.Cashflows.end(), valuations.CashflowIndices.begin(), zero);
-    std::exclusive_scan(valuations.YieldCurveTerms.begin(), valuations.YieldCurveTerms.end(), valuations.YieldCurveTermIndices.begin(), zero);
+    thrust::exclusive_scan(valuations.Cashflows.begin(), valuations.Cashflows.end(), valuations.CashflowIndices.begin(), zero);
+    thrust::exclusive_scan(valuations.YieldCurveTerms.begin(), valuations.YieldCurveTerms.end(), valuations.YieldCurveTermIndices.begin(), zero);
 
     if (args.test)
     {

@@ -20,24 +20,24 @@ enum class SortType : char
     NONE = '-'
 };
 
-enum class OptionType : int8_t
+enum class OptionTypeE : int8_t
 {
     CALL_VANILLA = 0,
     PUT_VANILLA = 1
 };
 
-inline std::ostream &operator<<(std::ostream &os, const OptionType t)
+inline std::ostream &operator<<(std::ostream &os, const OptionTypeE t)
 {
     os << static_cast<int>(t);
     return os;
 }
 
-inline std::istream &operator>>(std::istream &is, OptionType &t)
+inline std::istream &operator>>(std::istream &is, OptionTypeE &t)
 {
     int c;
     is >> c;
-    t = static_cast<OptionType>(c);
-    if (OptionType::CALL_VANILLA != t && OptionType::PUT_VANILLA != t)
+    t = static_cast<OptionTypeE>(c);
+    if (OptionTypeE::CALL_VANILLA != t && OptionTypeE::PUT_VANILLA != t)
     {
         throw std::out_of_range("Invalid OptionType read from stream.");
     }
@@ -61,7 +61,7 @@ struct Valuations
     std::vector<real> Coupons;
     std::vector<real> Spreads;
     // Option parameters
-    std::vector<OptionType> OptionTypes;
+    std::vector<OptionTypeE> OptionTypes;
     std::vector<real> StrikePrices;
     std::vector<uint16_t> FirstExerciseSteps;
     std::vector<uint16_t> LastExerciseSteps;

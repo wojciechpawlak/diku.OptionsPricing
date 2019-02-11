@@ -34,7 +34,7 @@ struct KernelValuations
     real *Coupons;
     real *Spreads;
     // Option parameters
-    OptionType *OptionTypes;
+    OptionTypeE *OptionTypes;
     real *StrikePrices;
     uint16_t *FirstExerciseSteps;
     uint16_t *LastExerciseSteps;
@@ -111,7 +111,7 @@ private:
     thrust::device_vector<real> Coupons;
     thrust::device_vector<real> Spreads;
     // Option parameters
-    thrust::device_vector<OptionType> OptionTypes;
+    thrust::device_vector<OptionTypeE> OptionTypes;
     thrust::device_vector<real> StrikePrices;
     thrust::device_vector<uint16_t> FirstExerciseSteps;
     thrust::device_vector<uint16_t> LastExerciseSteps;

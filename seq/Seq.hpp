@@ -55,7 +55,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     Qs[c.jmax] = one;                  // Qs[0] = 1$
 
     auto alphas = new real[c.n + 1](); // alphas[i]
-    int lastUsedYCTermIdx = 0;
+    volatile uint16_t lastUsedYCTermIdx = 0;
     alphas[0] = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx); // initial dt-period interest rate
 #ifdef DEV
     printf("0 %d alpha %f \n", 0, alphas[0]);
