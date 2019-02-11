@@ -1,11 +1,8 @@
 #ifndef ARGS_HPP
 #define ARGS_HPP
 
-#include "getoptpp/getopt_pp_standalone.h"
-
+#include "cxxopts/cxxopts.hpp"
 #include "ValuationConstants.hpp"
-
-using namespace GetOpt;
 
 namespace trinom
 {
@@ -16,28 +13,38 @@ struct Args
     std::vector<SortType> sorts;
     std::vector<int> blockSizes;
     std::vector<int> versions;
-    bool test;
-    int runs;
     int device;
+    int runs;
+    bool test;
 
     Args() {}
 
     Args(int argc, char *argv[])
     {
-        GetOpt_pp cmd(argc, argv);
-        std::vector<std::string> sortVals;
+        cxxopts::Options options(argv[0], " - example command line options");
+        options
+            .positional_help("[optional args]")
+            .show_positional_help();
 
-        // Defaults for single arguments
-        runs = 0;
-        device = 0;
+        options
+            .add_options()
+            ("h,help", "Print help")
+            ("o,valuations", "Input file", cxxopts::value<std::string>(valuations))
+            ("s,sort", "Sorting type applied to valuations", cxxopts::value<std::vector<std::string>>(sortVals))
+            ("b,block", "Block size", cxxopts::value<std::vector<int>>(blockSizes))
+            ("v,version", "Version of the kernel", cxxopts::value<std::vector<int>>(versions))
+            ("d,device", "GPU Device number", cxxopts::value<int>(device)->default_value("0"))
+            ("r,runs", "Number of runs", cxxopts::value<int>(runs)->default_value("0"))
+            ("t,test", "Test", cxxopts::value<bool>(test)->default_value("false"))
+            ;
 
-        cmd >> GetOpt::Option('o', "options", valuations);
-        cmd >> GetOpt::Option('s', "sort", sortVals);
-        cmd >> GetOpt::Option('v', "version", versions);
-        cmd >> GetOpt::Option('r', "runs", runs);
-        cmd >> GetOpt::Option('b', "block", blockSizes);
-        cmd >> GetOpt::Option('d', "device", device);
-        cmd >> GetOpt::OptionPresent('t', "test", test);
+        auto result = options.parse(argc, argv);
+
+        if (result.count("help"))
+        {
+            std::cout << options.help({ "", "Group" }) << std::endl;
+            exit(0);
+        }
 
         for (auto &sort : sortVals)
         {
@@ -60,6 +67,9 @@ struct Args
         if (versions.empty())
             versions.push_back(1);
     }
+
+private:
+    std::vector<std::string> sortVals;
 };
 } // namespace trinom
 

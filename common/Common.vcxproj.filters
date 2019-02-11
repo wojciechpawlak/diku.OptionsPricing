@@ -1,22 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="getoptpp">
-      <UniqueIdentifier>{d1588efe-ff72-4530-8af8-d2b95e884b1d}</UniqueIdentifier>
+    <Filter Include="cxxopts">
+      <UniqueIdentifier>{93d88f36-0869-48ea-ac2a-f715b741c9c0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="getoptpp\getopt_pp.cpp">
-      <Filter>getoptpp</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="getoptpp\getopt_pp.h">
-      <Filter>getoptpp</Filter>
-    </ClInclude>
-    <ClInclude Include="getoptpp\getopt_pp_standalone.h">
-      <Filter>getoptpp</Filter>
-    </ClInclude>
     <ClInclude Include="Args.hpp" />
     <ClInclude Include="Arrays.hpp" />
     <ClInclude Include="CudaInterop.h" />
@@ -24,5 +13,8 @@
     <ClInclude Include="Real.hpp" />
     <ClInclude Include="Valuations.hpp" />
     <ClInclude Include="ValuationConstants.hpp" />
+    <ClInclude Include="cxxopts\cxxopts.hpp">
+      <Filter>cxxopts</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -9,7 +9,8 @@
 #include <random>
 #include <vector>
 
-#include "../common/getoptpp/getopt_pp_standalone.h"
+#include "../common/cxxopts/cxxopts.hpp"
+
 #include "../common/Valuations.hpp"
 #include "../common/Real.hpp"
 
@@ -303,19 +304,27 @@ int main(int argc, char *argv[])
 {
     int dataType;
     long totalOptions;
-    int skewPercent = 1;
-    GetOpt::GetOpt_pp cmd(argc, argv);
+    int skewPercent;
+    cxxopts::Options options(argv[0], " - example command line options");
+    options
+        .positional_help("[optional args]")
+        .show_positional_help();
 
-    // 0 - uniform;
-    // 1 - random;
-    // 2 - random fixed height;
-    // 3 - random fixed width;
-    // 4 - skewed;
-    // 5 - skewed fixed height;
-    // 6 - skewed fixed width;
-    cmd >> GetOpt::Option('t', "type", dataType);
-    cmd >> GetOpt::Option('n', "totalOptions", totalOptions);
-    cmd >> GetOpt::Option('s', "skewPerc", skewPercent);
+    options
+        .add_options()
+        ("h,help", "Print help")
+        ("t,type", "Specify dataset type, options: 0: uniform, 1: random, 2: random fixed height, 3: random fixed width, 4: skewed, 5: skewed fixed height, 6: skewed fixed width", cxxopts::value<int>(dataType)->default_value("0"))
+        ("n,totalOptions", "Specify dataset size", cxxopts::value<long>(totalOptions)->default_value("1"))
+        ("s,skewPerc", "Specify percentage of skewed valuations", cxxopts::value<int>(skewPercent)->default_value("1"))
+    ;
+
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help"))
+    {
+        std::cout << options.help({ "", "Group" }) << std::endl;
+        exit(0);
+    }
 
     vector<RandValuation> randOptions;
 
