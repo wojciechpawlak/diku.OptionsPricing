@@ -68,6 +68,7 @@ struct Valuations
     std::vector<uint16_t> ExerciseStepFrequencies;
     // Yield Curve parameters
     std::vector<uint16_t> YieldCurveIndices;
+
     std::vector<uint16_t> YieldCurveTerms;
     std::vector<real> YieldCurveRates;
     std::vector<uint16_t> YieldCurveTimeSteps;
@@ -86,9 +87,9 @@ struct Valuations
 
         Maturities.reserve(ValuationCount);
         Cashflows.reserve(ValuationCount);
-        CashflowSteps.reserve(ValuationCount); // TODO: not N
-        Repayments.reserve(ValuationCount); // TODO: not N
-        Coupons.reserve(ValuationCount); // TODO: not N
+        //CashflowSteps.reserve(ValuationCount); // TODO: not N
+        //Repayments.reserve(ValuationCount); // TODO: not N
+        //Coupons.reserve(ValuationCount); // TODO: not N
         Spreads.reserve(ValuationCount);
 
         OptionTypes.reserve(ValuationCount);
@@ -98,9 +99,9 @@ struct Valuations
         ExerciseStepFrequencies.reserve(ValuationCount);
         YieldCurveIndices.reserve(ValuationCount);
 
-        YieldCurveTerms.reserve(ValuationCount);  // TODO: not N
-        YieldCurveRates.reserve(ValuationCount);  // TODO: not N
-        YieldCurveTimeSteps.reserve(ValuationCount);  // TODO: not N
+        //YieldCurveTerms.reserve(ValuationCount);  // TODO: not N
+        //YieldCurveRates.reserve(ValuationCount);  // TODO: not N
+        //YieldCurveTimeSteps.reserve(ValuationCount);  // TODO: not N
     }
 
     Valuations(const std::string &filename)
