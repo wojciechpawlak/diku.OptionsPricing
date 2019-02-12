@@ -5,21 +5,22 @@
 # $ sh test.sh - to run benchmarking with the specified parameters
 
 # program options
-rep=5
+rep=3
 device=0
-# sorts="- w W h H"
-sorts="w h"
+sorts="-s - -s w -s W -s h -s H"
+# sorts="w h"
 # block_sizes="32 64 128 256 512 1024"
-block_sizes="128"
-# versions="1 2 3 4"
-versions="3 4"
+block_sizes="-b 64 -b 128"
+versions="-v 1 -v 2 -v 3 -v 4"
+# versions="3 4"
 
 # data
 data_path="../data"
+results_path="../results"
 # files=("book" "options-1000" "options-60000")
 # files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
-files=("0_UNIFORM" "1_RAND" "4_SKEWED")
-yield="yield"
+# files=("0_UNIFORM_100000" "1_RAND_100000" "4_SKEWED_100000")
+files=("0_UNIFORM_100000" "1_RAND_100000" "2_RANDCONSTHEIGHT_100000" "3_RANDCONSTWIDTH_100000" "4_SKEWED_100000" "5_SKEWEDCONSTHEIGHT_100000" "6_SKEWEDCONSTWIDTH_100000")
 
 # executables
 exe="../build/CudaOption"
@@ -30,7 +31,7 @@ exedoublereg=$exedouble"-reg32"
 exes=($exefloat $exefloatreg $exedouble $exedoublereg)
 exes_names=("float,-" "float,32" "double,-" "double,32")
 # exes_to_run=(0 1 2 3)
-exes_to_run=(2)
+exes_to_run=(0 2)
 
 compile() {
     echo "Compiling float version..."
@@ -53,13 +54,30 @@ test() {
     do
         for index in ${exes_to_run[*]}
         do 
-            ./${exes[$index]} -o $data_path/$file.in -y $data_path/$yield.in -s $sorts -v $versions -b $block_sizes -r $rep -d $device | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
+            ./${exes[$index]} -o $data_path/$file.in $sorts $versions $block_sizes -r $rep -d $device | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
+        done
+    done
+}
+
+validate() {
+    for file in ${files[*]}
+    do
+        for index in ${exes_to_run[*]}
+        do 
+            ./${exes[$index]} -o $data_path/$file.in $sorts $versions $block_sizes -d $device > $results_path/test.out  | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
+            if [ index = 0 || index = 1 ]; then
+                cat $data_path/out32/$file.out $results_path/test.out | ../build/Compare
+            else
+                cat $data_path/out/$file.out $results_path/test.out | ../build/Compare
+            fi
         done
     done
 }
 
 if [ "$1" = "compile" ]; then
     compile
+elif [ "$1" = "validate" ]; then
+    validate
 else
     test
 fi

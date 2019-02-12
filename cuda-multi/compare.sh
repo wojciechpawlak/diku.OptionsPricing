@@ -17,7 +17,8 @@ versions="1 2 3"
 # data
 data_path="../data"
 # files=("book" "options-1000" "options-60000")
-files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
+# files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
+files=("0_UNIFORM_100000" "1_RAND_100000" "2_RANDCONSTHEIGHT_100000" "3_RANDCONSTWIDTH_100000" "4_SKEWED_100000" "5_SKEWEDCONSTHEIGHT_100000" "6_SKEWEDCONSTWIDTH_100000")
 # data_path="../data/unifdist_100000"
 # files=( "rand_h_unif_w_unifdist_100000" "rand_hw_unifdist_100000" "rand_hw_w_256_unifdist_100000" "rand_w_unif_h_unifdist_100000"
 #         "skew_h_1_rand_w_unifdist_100000" "skew_h_10_rand_w_unifdist_100000" "skew_hw_1_unifdist_100000" "skew_hw_1_w_256_unifdist_100000"
@@ -28,7 +29,7 @@ files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5
 #         "skew_h_1_rand_w_normdist_100000" "skew_h_10_rand_w_normdist_100000" "skew_hw_1_normdist_100000" "skew_hw_1_w_256_normdist_100000"
 #         "skew_hw_10_normdist_100000" "skew_hw_10_w_256_normdist_100000" "skew_w_1_rand_h_normdist_100000" "skew_w_10_rand_h_normdist_100000"
 #         "unif_book_hw_100000" "unif_hw_100000")
-yield="yield"
+
 out_path="$data_path/out"
 # out_path="$data_path/out32"
 
@@ -55,7 +56,7 @@ compare() {
                 do
                     echo "Comparing $file (version $version, block size $block_size, sort $sort)"
                     {
-                        ./$exe -o $data_path/$file.in -y $data_path/$yield.in -s $sort -v $version -b $block_size -d $device
+                        ./$exe -o $data_path/$file.in -s $sort -v $version -b $block_size -d $device
                         cat $out_path/$file.out
                     } | ./$compare
                 done

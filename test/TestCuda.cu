@@ -13,33 +13,6 @@ using namespace trinom;
 
 TEST_CASE("Book options")
 {
-    //Valuations valuations(100);
-    //for (int i = 1; i <= valuations.ValuationCount; ++i)
-    //{
-    //    valuations.TermUnits.push_back(360);
-    //    valuations.TermSteps.push_back(i);
-    //    valuations.MeanReversionRates.push_back(0.1);
-    //    valuations.Volatilities.push_back(0.01);
-
-    //    valuations.Maturities.push_back(9);
-    //    valuations.Cashflows.push_back(3);
-    //    valuations.CashflowSteps.push_back(3);
-    //    valuations.Repayments.push_back(3);
-    //    valuations.Coupons.push_back(3);
-    //    valuations.Spreads.push_back(3);
-
-    //    valuations.OptionTypes.push_back(OptionType::PUT_VANILLA);
-    //    valuations.StrikePrices.push_back(63);
-    //    valuations.FirstExerciseSteps.push_back(63);
-    //    valuations.LastExerciseSteps.push_back(63);
-    //    valuations.ExerciseStepFrequencies.push_back(63);
-
-    //    valuations.ExerciseStepFrequencies.push_back(63);
-
-    //    valuations.ExerciseStepFrequencies.push_back(63);
-    //    valuations.ExerciseStepFrequencies.push_back(63);
-    //    valuations.ExerciseStepFrequencies.push_back(63);
-    //}
     Valuations valuations("../data/0_UNIFORM_1_CALL_PUT_EU_Berm_US_oas.in");
     
     vector<real> seqResults, cudaResults;

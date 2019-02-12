@@ -17,8 +17,9 @@ versions="1 2 3 4"
 # data
 data_path="../data"
 # files=("book" "options-1000" "options-60000")
-files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
-yield="yield"
+# files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
+files=("0_UNIFORM_100000" "1_RAND_100000" "2_RANDCONSTHEIGHT_100000" "3_RANDCONSTWIDTH_100000" "4_SKEWED_100000" "5_SKEWEDCONSTHEIGHT_100000" "6_SKEWEDCONSTWIDTH_100000")
+
 out_path="$data_path/out"
 # out_path="$data_path/out32"
 
@@ -45,7 +46,7 @@ compare() {
                 do
                     echo "Comparing $file (version $version, block size $block_size, sort $sort)"
                     {
-                        ./$exe -o $data_path/$file.in -y $data_path/$yield.in -s $sort -v $version -b $block_size -d $device
+                        ./$exe -o $data_path/$file.in -s $sort -v $version -b $block_size -d $device
                         cat $out_path/$file.out
                     } | ./$compare
                 done

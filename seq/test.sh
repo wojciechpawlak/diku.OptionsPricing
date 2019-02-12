@@ -10,8 +10,8 @@ rep=1
 # data
 data_path="../data"
 # files=("book" "options-1000" "options-60000")
-files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
-yield="yield"
+# files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
+files=("0_UNIFORM_100000" "1_RAND_100000" "2_RANDCONSTHEIGHT_100000" "3_RANDCONSTWIDTH_100000" "4_SKEWED_100000" "5_SKEWEDCONSTHEIGHT_100000" "6_SKEWEDCONSTWIDTH_100000")
 
 # executables
 exe="../build/Seq"
@@ -36,7 +36,7 @@ test() {
     do
         for index in ${exes_to_run[*]}
         do 
-            ./${exes[$index]} -o $data_path/$file.in -y $data_path/$yield.in -r $rep | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
+            ./${exes[$index]} -o $data_path/$file.in -r $rep | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
         done
     done
 }
