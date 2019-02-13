@@ -21,7 +21,8 @@ results_path="../results"
 # files=("book" "options-1000" "options-60000")
 # files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
 # files=("0_UNIFORM_100000" "1_RAND_100000" "4_SKEWED_100000")
-files=("0_UNIFORM_100000" "1_RAND_100000" "2_RANDCONSTHEIGHT_100000" "3_RANDCONSTWIDTH_100000" "4_SKEWED_100000" "5_SKEWEDCONSTHEIGHT_100000" "6_SKEWEDCONSTWIDTH_100000")
+# files=("0_UNIFORM_1_CALL_PUT_EU_Berm_US_oas" "0_UNIFORM_10000" "0_UNIFORM_100000" "1_RAND_100000" "2_RANDCONSTHEIGHT_100000" "3_RANDCONSTWIDTH_100000" "4_SKEWED_100000" "5_SKEWEDCONSTHEIGHT_100000" "6_SKEWEDCONSTWIDTH_100000")
+files=("0_UNIFORM_1_CALL_PUT_EU_Berm_US_oas" "0_UNIFORM_10000" "0_UNIFORM_100000" "1_RAND_100000" "4_SKEWED_100000")
 
 # executables
 exe="../build/CudaMulti"
@@ -60,25 +61,8 @@ test() {
     done
 }
 
-validate() {
-    for file in ${files[*]}
-    do
-        for index in ${exes_to_run[*]}
-        do 
-            ./${exes[$index]} -o $data_path/$file.in $sorts $versions $block_sizes -d $device > $results_path/test.out  | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
-            if [ index = 0 || index = 1 ]; then
-                cat $data_path/out32/$file.out $results_path/test.out | ../build/Compare
-            else
-                cat $data_path/out/$file.out $results_path/test.out | ../build/Compare
-            fi
-        done
-    done
-}
-
 if [ "$1" = "compile" ]; then
     compile
-elif [ "$1" = "validate" ]; then
-    validate
 else
     test
 fi
