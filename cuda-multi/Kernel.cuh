@@ -440,7 +440,7 @@ namespace cuda
                 args.getQs()[threadIdx.x] = Q;
                 __syncthreads();
 #ifdef DEV1
-                if (valGIdx == PRINT_IDX && threadIdx.x == 0 && i <= args.getNs()[threadIdx.x] && i < PRINT_ITER)
+                if (valGIdx == PRINT_IDX && threadIdx.x == 0 && i <= args.getNs()[threadIdx.x] && i > PRINT_FIRST_ITER && i < PRINT_LAST_ITER)
                 {
                     printf("%d %d: ", valGIdx, i);
                     for (auto k = 0; k < blockDim.x; ++k)

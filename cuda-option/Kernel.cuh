@@ -107,15 +107,6 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     if (idx == PRINT_IDX) printf("%d: %f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
 #endif
     args.init(valuations);
-    args.setQAt(c.jmax, one); // Initialize the root of the tree
-    volatile uint16_t lastUsedYCTermIdx = 0;
-    auto alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
-    args.setAlphaAt(0, exp(-alpha * c.dt));
-
-#ifdef DEV
-    if (idx == PRINT_IDX)
-        printf("%d %d: %.18f %.18f %d\n", idx, 0, alpha, args.getAlphaAt(0), lastUsedYCTermIdx);
-#endif
 
     // Precompute exponent of rates for each node on the width on the tree (constant over forward propagation)
     for (auto j = -c.jmax; j <= c.jmax; ++j)
@@ -143,6 +134,16 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 #endif
 
     // Forward propagation
+    args.setQAt(c.jmax, one); // Initialize the root of the tree
+    volatile uint16_t lastUsedYCTermIdx = 0;
+    auto alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
+    args.setAlphaAt(0, exp(-alpha * c.dt));
+
+#ifdef DEV
+    if (idx == PRINT_IDX)
+        printf("%d %d: %.18f %.18f %d\n", idx, 0, alpha, args.getAlphaAt(0), lastUsedYCTermIdx);
+#endif
+
     for (auto i = 1; i <= c.n; ++i)
     {
         const auto jhigh = min(i, c.jmax);
@@ -245,7 +246,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         args.switchQs();
 
 #ifdef DEV
-        if (threadIdx.x == 0 && i < PRINT_ITER)
+        if (idx == PRINT_IDX && i > PRINT_FIRST_ITER && i < PRINT_LAST_ITER)
         {
             printf("%d %d: ", idx, i);
             for (auto k = 0; k < c.width; ++k)
@@ -259,11 +260,13 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 
     // Backward propagation
     auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+    auto cashflowsRemaining = valuations.Cashflows[idx];
 #ifdef DEV
-    if (idx == PRINT_IDX) printf("%d: %d %f %f %d\n", idx, lastUsedCIdx, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
+    if (idx == PRINT_IDX) printf("%d %d: %d %d %f %f %d\n", idx, c.n, lastUsedCIdx, cashflowsRemaining, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
 #endif
     args.fillQs(c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
-    auto lastCStep = valuations.CashflowSteps[lastUsedCIdx] <= c.n ? valuations.CashflowSteps[--lastUsedCIdx] : valuations.CashflowSteps[lastUsedCIdx];
+    cashflowsRemaining--;
+    auto lastCStep = valuations.CashflowSteps[lastUsedCIdx] <= c.n  && cashflowsRemaining > 0 ? valuations.CashflowSteps[--lastUsedCIdx] : valuations.CashflowSteps[lastUsedCIdx];
 
     for (auto i = c.n - 1; i >= 0; --i)
     {
@@ -274,13 +277,13 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastCStep - i) % c.ExerciseStepFrequency == 0;
 #ifdef DEV
         if (idx == PRINT_IDX)
-            printf("%d %d: %d %d %d %d\n", idx, i, isExerciseStep, lastCStep, (lastCStep - i) % c.ExerciseStepFrequency, (lastCStep - i) % c.ExerciseStepFrequency == 0);
+            printf("%d %d: %.18f %d %d %d %d\n", idx, i, expmAlphadt, isExerciseStep, lastCStep, (lastCStep - i) % c.ExerciseStepFrequency, (lastCStep - i) % c.ExerciseStepFrequency == 0);
 #endif
         // add coupon and repayment if crossed a time step with a cashflow
-        if (i == lastCStep - 1)
+        if (i == lastCStep - 1 && cashflowsRemaining > 0)
         {
 #ifdef DEV
-            if (idx == PRINT_IDX) printf("%d %d: %d coupon: %.18f\n", idx, i, lastUsedCIdx, args.getQAt(c.jmax));
+            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, args.getQAt(c.jmax));
 #endif
             for (auto j = -jhigh; j <= jhigh; ++j)
             {
@@ -288,12 +291,14 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
                 args.setQAt(jind, args.getQAt(jind) + valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]);
             }
 #ifdef DEV
-            if (idx == PRINT_IDX) printf("%d %d: %d coupon: %.18f\n", idx, i, lastUsedCIdx, args.getQAt(c.jmax));
+            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, args.getQAt(c.jmax));
 #endif
-            lastCStep = (--lastUsedCIdx >= 0) ? valuations.CashflowSteps[lastUsedCIdx] : 0;
+            lastUsedCIdx--;
+            lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+            cashflowsRemaining--;
         }
 
-        // calculate accrued interest from cashflow
+        // calculate accrued interest from last cashflow
         const auto ai = isExerciseStep && lastCStep != 0 ? computeAccruedInterest(c.termStepCount, i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV
         if (idx == PRINT_IDX && i == lastCStep - 1)
