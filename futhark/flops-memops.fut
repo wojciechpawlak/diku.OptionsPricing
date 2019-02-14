@@ -29,7 +29,7 @@ type YieldCurveData = {
 type TOptionData = {
     StrikePrice                 : real   -- X
   , Maturity                    : real   -- T, [years]
-  , Length                      : real   -- t, [years]
+  , Exercise                      : real   -- t, [years]
   , ReversionRateParameter      : real   -- a, parameter in HW-1F model
   , VolatilityParameter         : real   -- sigma, volatility parameter in HW-1F model
   , TermUnit                    : u16
@@ -59,15 +59,16 @@ let computeWH (optionData : TOptionData) : (i32,i32) =
 let simpleFops (single: bool) (hwd: i64) : i64 = 1
 --  if single then 1
 --  else if hwd == 1
---       then 2 -- P100   Compute 6
+--       then 2 -- v100   Compute 6
 --       else 3 -- GTX780 Compute 3.5
 
 let specialFops (single: bool) (hwd: i64) : i64 =
   (simpleFops single hwd) *
   if hwd == 1
-  then 1 -- P100   Compute 6
+  then 1 -- v100   Compute 6
   else 1 -- GTX690 Compute 3.5
 
+-- Calculate global device memory accesses
 let mopsPerOption (single: bool) (w: i64) (h: i64) : i64 =
   let header = 8
   let getYield = 6
@@ -78,9 +79,6 @@ let mopsPerOption (single: bool) (w: i64) (h: i64) : i64 =
   let computeCall = w + h * (1 + w*bwdHelper) + 1
   let total = header + computeQ + computeCall
   in  if single then total else 2*total
-
-
-
 
 
 
@@ -95,39 +93,75 @@ let mopsPerOption (single: bool) (w: i64) (h: i64) : i64 =
 --  let computeCall = h * ( 2*simple + w*bwdHelper )
 --  in  header + computeQ + computeCall
 
-let fopsPerOption (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
-  let simple = simpleFops  single hwd
-  let special= specialFops single hwd
-  let header      = 20 * simple + 2*special -- 2 adds, 4 subs, 4 divs, 10 muls, 2 exps
-  let getYield    = 4  * simple -- 1 add, 1 sub, 1 mul, 1 div
-  let fwdHelper   = 52 * simple
-  let bwdHelper   = 47 * simple + special
-  let computeQ    = h * ( w*(12*simple + 2*special + fwdHelper) + getYield + 7*simple +2*special )
-  let computeCall = h * ( 2*simple + w*bwdHelper )
-  in  header + computeQ + computeCall
+--let fopsPerOption (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
+--  let simple = simpleFops  single hwd
+--  let special= specialFops single hwd
+--  let header      = 20 * simple + 2*special -- 2 adds, 4 subs, 4 divs, 10 muls, 2 exps
+--  let getYield    = 4  * simple -- 1 add, 1 sub, 1 mul, 1 div
+--  let fwdHelper   = 52 * simple
+--  let bwdHelper   = 47 * simple + special
+--  let computeQ    = h * ( w*(12*simple + 2*special + fwdHelper) + getYield + 7*simple +2*special )
+--  let computeCall = h * ( 2*simple + w*bwdHelper )
+--  in  header + computeQ + computeCall
 
-let main [q] [y] (strikes           : [q]real)
-                 (maturities        : [q]real) 
-                 (lenghts           : [q]real)
-                 (termunits         : [q]u16 ) 
-                 (termstepcounts    : [q]u16 ) 
-                 (rrps              : [q]real) 
-                 (vols              : [q]real) 
-                 (types             : [q]i8)
-                 (yield_p           : [y]real)
-                 (yield_t           : [y]i32)
-               : (i64, i64, i64, i64, i64, i64) =
-    let options = map8 (\s m l u c r v t -> {StrikePrice=s, Maturity=m, Length=l, TermUnit=u, TermStepCount=c,
+let fopsPerOption (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
+  let simple        = simpleFops  single hwd
+  let special       = specialFops single hwd
+  
+  let header        = 23 * simple + 3*special -- 2 adds, 5 subs, 5 divs, 11 muls, 3 exps
+  
+  let rates         = w * (special + 3 * simple)
+  let probs         = (w - 2) * 21 * simple + 24 + 26 
+  let precompute    = rates + probs
+  
+  let getYield      = 5  * simple -- 1 add, 1 sub, 1 mul, 1 div
+  let QExpCalc      = 2*simple
+  let QCalc         = 11*simple
+  let alphaCalc     = 7*simple +3*special + getYield
+  let computeQ      = h * (w * (QExpCalc + QCalc) + alphaCalc)
+  
+  let cashflowFreq  = 1/6
+  let exerciseFreq  = 1/12
+  let cashflowCalc  = cashflowFreq * 3 * simple
+  let exerciseCalc  = exerciseFreq * 3 * simple
+  let bondPriceCalc = 8 * simple
+  let payoffCalc    = exerciseFreq * 1 * simple
+  let computePrice  = h * w * (cashflowCalc + exerciseCalc + bondPriceCalc + payoffCalc)
+  
+  in header + precompute + computeQ + computePrice
+
+let main [q] [y] 
+    (termunits          : [q]u16 ) 
+    (termstepcounts     : [q]u16 ) 
+    (rrps               : [q]real) 
+    (vols               : [q]real) 
+    (maturities         : [q]real) 
+    (cashflows          : [q]u16) 
+    (cashflowsteps      : [q]u16) 
+    (repayments         : [q]real) 
+    (coupons            : [q]real) 
+    (spreads            : [q]real) 
+    (types              : [q]i8)
+    (strikes            : [q]real)
+    (firstexercisesteps : [q]real)
+    (lastexercisesteps  : [q]real)
+    (exercisestepfreqs  : [q]real)
+    (ycinds             : [q]u16) 
+    (ycterms            : [q]u16) 
+    (ycrates            : [y]real)
+    (yctimesteps        : [y]i32)
+  : (i64, i64, i64, i64, i64, i64) =
+    let options = map8 (\s m l u c r v t -> {StrikePrice=s, Maturity=m, Exercise=l, TermUnit=u, TermStepCount=c,
                                         ReversionRateParameter=r, VolatilityParameter=v, OptionType=t }
-                ) strikes maturities lenghts termunits termstepcounts rrps vols types
+                ) strikes maturities lastexercisesteps termunits termstepcounts rrps vols types
 
     let (ws0, hs0) = unzip (map computeWH options)
     let ws = map (i64.i32) ws0
     let hs = map (i64.i32) hs0
     
-    -- hwd == 1 => P100
-    let fops_single_p100 = map2 (fopsPerOption true  1) ws hs |> reduce (+) 0i64
-    let fops_double_p100 = map2 (fopsPerOption false 1) ws hs |> reduce (+) 0i64
+    -- hwd == 1 => V100
+    let fops_single_v100 = map2 (fopsPerOption true  1) ws hs |> reduce (+) 0i64
+    let fops_double_v100 = map2 (fopsPerOption false 1) ws hs |> reduce (+) 0i64
 
     -- hwd == 2 => GTX690 (or anything different than 1)
     let fops_single_gtx690 = map2 (fopsPerOption true  2) ws hs |> reduce (+) 0i64
@@ -136,7 +170,7 @@ let main [q] [y] (strikes           : [q]real)
     let mops_single = map2 (mopsPerOption true ) ws hs |> reduce (+) 0i64
     let mops_double = map2 (mopsPerOption false) ws hs |> reduce (+) 0i64
 
-    in  ( fops_single_p100, fops_double_p100
+    in  ( fops_single_v100, fops_double_v100
         , fops_single_gtx690, fops_double_gtx690
         , mops_single, mops_double
         )
