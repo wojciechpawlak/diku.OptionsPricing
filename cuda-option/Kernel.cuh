@@ -266,7 +266,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 #endif
     args.fillQs(c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
     cashflowsRemaining--;
-    auto lastCStep = valuations.CashflowSteps[lastUsedCIdx] <= c.n  && cashflowsRemaining > 0 ? valuations.CashflowSteps[--lastUsedCIdx] : valuations.CashflowSteps[lastUsedCIdx];
+    auto lastCStep = valuations.CashflowSteps[lastUsedCIdx] <= c.n && cashflowsRemaining > 0 ? valuations.CashflowSteps[--lastUsedCIdx] : valuations.CashflowSteps[lastUsedCIdx];
 
     for (auto i = c.n - 1; i >= 0; --i)
     {
@@ -299,7 +299,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         }
 
         // calculate accrued interest from last cashflow
-        const auto ai = isExerciseStep && lastCStep != 0 ? computeAccruedInterest(c.termStepCount, i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
+        const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(c.termStepCount, i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV
         if (idx == PRINT_IDX && i == lastCStep - 1)
             printf("%d %d: ai %f %d %d %d %f %d %d %f\n", idx, i, ai, c.termStepCount, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
