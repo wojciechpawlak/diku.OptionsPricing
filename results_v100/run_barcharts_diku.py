@@ -50,13 +50,14 @@ parser.add_argument('-d', '--dataset', type=int, dest='dataset', default=0)
 parser.add_argument('--datasets', dest='datasets', nargs='+', default=' ')
 # parser.add_argument('-k', '--kernel_type', dest='kernel_type', default=' ')
 parser.add_argument('-k','--kernel_types', dest='kernel_types', nargs='+', default=' ')
-parser.add_argument('-p', '--plots', dest='plots', nargs='+', default=[0, 1])
+parser.add_argument('-p', '--plots', dest='plots', nargs='+', default=[3])
+parser.add_argument('-f', '--figure_format', dest='figure_format', default='eps')
 
 args = parser.parse_args()
 args.plots = [int(i) for i in args.plots]
 
 config = configparser.ConfigParser()   
-config_file_path = r'C:\Work\SimCorp\stl-hpc-research\scripts\research_barcharts_diku.config'
+config_file_path = r'C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\results_v100\research_barcharts_diku.config'
 config.read(config_file_path)
 
 # read in results path (from program arguments or config file)
@@ -103,7 +104,7 @@ precision_dict = {'float': 'Single', 'double': 'Double'}
 tech_dict = {'principiac': 'SCD Prod', 'seqc': 'Sequential C', 'openmp': 'OpenMP', 'cuda': 'CUDA', 'opencl': 'OpenCL', 'futhark-c': 'Futhark-C', 'futhark-opencl': 'Futhark-OpenCL'}
 platform_dict = {'intel': 'CPU', 'v100': 'V100', 'p100': 'P100', 'gtx780': 'GTX780'}
 device_dict = {'v100': 'V100', 'p100': 'P100', 'gtx780': 'GTX780'}
-version_dict = {'cuda-option': 'Opt/T', 'cuda-multi': 'Opts/TB'}
+version_dict = {'cuda-option': 'gpu-outer', 'cuda-multi': 'gpu-flat'}
 kernel_dict = {1: 'NOOPT', 2: 'PAD_GLOBAL', 3: 'PAD_TB', 4: 'PAD_WARP'}
 sort_dict = {'-': 'No sort', 'H': 'Height desc', 'h': 'Height asc', 'W': 'Width desc', 'w': 'Width asc'}
 optimization_dict = {'': 'All optimizations', 'NOOPT': 'w/o coalescing', 'PAD_GLOBAL': 'w/o TB padding', 'No sort': 'w/o reordering'}
@@ -112,12 +113,20 @@ optimization_dict = {'': 'All optimizations', 'NOOPT': 'w/o coalescing', 'PAD_GL
 datasets = limited_datasets if limited_datasets else set()
 results_dict = dict()
 
+devices = set()
+for device in device_dict.items():
+    for filename in device_results_filenames:
+        if device[0] in filename:
+            devices.add(device[1])
+
 for filename in device_results_filenames:
     with open(input_path + filename) as f:
         lines = f.readlines()
         # you may also want to remove whitespace characters like `\n` at the end of each line
-        # lines = [x.strip().split(' ') for x in [ line for line in lines if '2018-'in line and not 'Expected' in line and not 'getLastCudaError()' in line]]
-        lines = [x.strip().split(delimeter) for x in [ line for line in lines if not 'file' in line]]
+        # lines = [x.strip().split(' ') for x in [ line for line in lines 
+            # if '2018-'in line and not 'Expected' in line and not 'getLastCudaError()' in line]]
+        lines = [x.strip().split(delimeter) for x in [ line for line in lines 
+            if not 'file' in line and not 'terminate' in line and not 'what()' in line]]
 
         (device, version) = splitext(basename(filename))[0].split('_')
 
@@ -140,7 +149,7 @@ for filename in device_results_filenames:
 
         datasets = sorted(datasets)
         datasets_count = len(datasets)
-        timings = [[]] * datasets_count
+        timings = [[sys.maxsize,sys.maxsize]] * datasets_count
         datesets_iter = iter(datasets)
 
         # assign result per dataset to each of kernels
@@ -186,13 +195,22 @@ double_cpu_results = []
 
 with open(cpu_results_path) as f:
     lines = f.readlines()
-    lines = [x.strip().split(' ') for x in [ line for line in lines if 'double' in line or 'single' in line and not 'Expected' in line and not 'getLastCudaError()' in line]]
+    cpu_delimeter = ',' if ',' in lines[0] else ' ' 
+    lines = [x.strip().split(cpu_delimeter) for x in [ line for line in lines 
+        if not 'file' in line 
+            and 'double' in line or 'single' in line or 'float' in line and not 'Expected' in line and not 'getLastCudaError()' in line]]
 
     for line in lines:
-        if line[0] == 'single':
-            single_cpu_results.append(int(line[2]))
-        elif line[0] == 'double':
-            double_cpu_results.append(int(line[2]))
+        if line[0] in limited_datasets: # Fix this, will not work
+            if line[0] == 'single':
+                single_cpu_results.append(int(line[2]))
+            elif line[0] == 'double':
+                double_cpu_results.append(int(line[2]))
+        if line[0] in limited_datasets:
+            if line[1] == 'float':
+                single_cpu_results.append(int(line[7])/1000)
+            elif line[1] == 'double':
+                double_cpu_results.append(int(line[7])/1000)
 
 print(single_cpu_results)
 print(double_cpu_results)
@@ -210,16 +228,34 @@ width = 0.225  # the width of the bars
 # 2738946048, 417930000, 82836705060, 12709138884, 8083858200, 1243743444
 # 5477892096, 835860000, 165673410120, 25418277768, 16167716400, 2487486888
 
-flops_OptT_single = [25432489984,2880690000,749167430295,114974702569,75733038865,11660672980]
-flops_OptsTB_single = [16957166170,1976772280,468674867247,72027781445,48065154714,7427231551]
-flops_OptT_double = [36628917248,5837670080,1052751000000,169935513279,89578307165,15289858773]
-flops_OptsTB_double = [30206787127,4796889170,863636456723,138976446679,71660294257,12532714086]
+# flops_OptT_single = [25432489984,2880690000,749167430295,114974702569,75733038865,11660672980]
+# flops_OptsTB_single = [16957166170,1976772280,468674867247,72027781445,48065154714,7427231551]
+# flops_OptT_double = [36628917248,5837670080,1052751000000,169935513279,89578307165,15289858773]
+# flops_OptsTB_double = [30206787127,4796889170,863636456723,138976446679,71660294257,12532714086]
 
 # flops_OptT_double = [39260822215,6257125364,1128394529589,182145923933,96014795308,16388484074]
 # flops_OptsTB_double = [32377241485,5141561013,925691500953,148962349287,76809315810,134332297159]
 
 mem_accesses = [2738946048,417930000,82836705060,12709138884,8083858200,1243743444]
 # double_mem_access = [5477892096,835860000,165673410120,25418277768,16167716400,2487486888]
+
+# futhark flops-memops.fut script
+# "0_UNIFORM_10000" "0_UNIFORM_100000" "1_RAND_100000" "4_SKEWED_100000"
+# flops_OptT_single = [1172990000,11729900000,335986186408,33987585746]
+# flops_OptsTB_single = [1172990000,11729900000,335986186408,33987585746]
+# flops_OptT_double = [1172990000,11729900000,335986186408,33987585746]
+# flops_OptsTB_double = [1172990000,11729900000,335986186408,33987585746]
+
+# flops_OptT_single = [335986186408,33987585746]
+# flops_OptsTB_single = [335986186408,33987585746]
+# flops_OptT_double = [335986186408,33987585746]
+# flops_OptsTB_double = [335986186408,33987585746]
+
+# NSight Profiler
+flops_OptT_double = [264422436545,22444351687]
+flops_OptsTB_double = [269739960791,23253035475]
+flops_OptT_single = [int(264422436545*0.7),int(22444351687*0.7)]
+flops_OptsTB_single = [int(269739960791*0.7),int(23253035475*0.7)]
 
 if 0 in args.plots:
     for precision in precision_dict.values():
@@ -242,7 +278,7 @@ if 0 in args.plots:
         speedup_ax.set_xticklabels(datasets)
         
         count = 0
-        for device in device_dict.values():
+        for device in devices:
             for version in version_dict.values():
                 filtered_results_dict = {k:v for (k,v) in results_dict.items() if precision in k and version in k and device in k}
                 filtered_kernel_names = np.array(list(filtered_results_dict.keys())).tolist()
@@ -271,10 +307,10 @@ if 0 in args.plots:
                         filtered_kernel_names[best_result_index])
 
                 flops = []
-                if precision == 'Single' and version == 'Opt/T': flops = flops_OptT_single
-                if precision == 'Single' and version == 'Opts/TB': flops = flops_OptsTB_single
-                if precision == 'Double' and version == 'Opt/T': flops = flops_OptT_double
-                if precision == 'Double' and version == 'Opts/TB': flops = flops_OptsTB_double
+                if precision == precision_dict['float'] and version == version_dict['cuda-option']: flops = flops_OptT_single
+                if precision == precision_dict['float'] and version == version_dict['cuda-multi']: flops = flops_OptsTB_single
+                if precision == precision_dict['double'] and version == version_dict['cuda-option']: flops = flops_OptT_double
+                if precision == precision_dict['double'] and version == version_dict['cuda-multi']: flops = flops_OptsTB_double
 
                 print(filtered_best_results)
 
@@ -283,11 +319,12 @@ if 0 in args.plots:
                 gflops_str = ' & '.join(truncated_gflops)
                 print("GFLOP/s: " + gflops_str)
                 
-                num_bytes = 4 if precision == 'Single' else 8
-                memband_results = [(a*num_bytes)*(10e-9)/(b*(10e-3)) for a,b in zip(mem_accesses,filtered_best_results)]
-                truncated_memband = ["{0:0.2f}".format(s) for s in memband_results]
-                memband_str = ' & '.join(truncated_memband)
-                print("Mem bandwidth GB/s: " + memband_str)
+                # Do not calcualte memory bandwidth
+                # num_bytes = 4 if precision == 'Single' else 8
+                # memband_results = [(a*num_bytes)*(10e-9)/(b*(10e-3)) for a,b in zip(mem_accesses,filtered_best_results)]
+                # truncated_memband = ["{0:0.2f}".format(s) for s in memband_results]
+                # memband_str = ' & '.join(truncated_memband)
+                # print("Mem bandwidth GB/s: " + memband_str)
 
                 print([float("{0:0.2f}".format(s)) for s in filtered_best_speedups])
                 truncated_speedups = ["{0:0.2f}$\\times$".format(s) for s in filtered_best_speedups]
@@ -322,8 +359,8 @@ if 0 in args.plots:
         runtime_ax.legend()
         # plt.show()
         runtime_fig.set_size_inches(args.height, args.width)
-        output_path = output_path_dir + '\\figures\\' + 'best_runtimes_' + precision + '.eps'
-        runtime_fig.savefig(output_path, format='eps', dpi=1200, bbox_inches='tight')
+        output_path = output_path_dir + '\\figures\\' + 'best_runtimes_' + precision + '.' + args.figure_format
+        runtime_fig.savefig(output_path, format=args.figure_format, dpi=1200, bbox_inches='tight')
 
         rect_heights = []
         for kernel_rects in speedup_rects:
@@ -337,15 +374,15 @@ if 0 in args.plots:
         speedup_ax.legend()
         # plt.show()
         speedup_fig.set_size_inches(args.height, args.width)
-        output_path = output_path_dir + '\\figures\\' + 'best_speedups_' + precision + '.eps'
-        speedup_fig.savefig(output_path, format='eps', dpi=1200, bbox_inches='tight')
+        output_path = output_path_dir + '\\figures\\' + 'best_speedups_' + precision + '.' + args.figure_format
+        speedup_fig.savefig(output_path, format=args.figure_format, dpi=1200, bbox_inches='tight')
 
 offset = [-1, 0, 1]
 width = 0.3  # the width of the bars
 
 if 1 in args.plots:
     for precision in precision_dict.values():
-        for device in device_dict.values():
+        for device in devices:
             for version in version_dict.values():
                 runtime_fig, runtime_ax = plt.subplots()
                 runtime_rects = []
@@ -408,8 +445,8 @@ if 1 in args.plots:
                 runtime_fig.set_size_inches(args.height, args.width)
                 version_key = list(version_dict.keys())[list(version_dict.values()).index(version)]
 
-                output_path = output_path_dir + '\\figures\\' + 'opt_impact_' + precision + '_' + device + '_' + version_key + '.eps'
-                runtime_fig.savefig(output_path, format='eps', dpi=1200, bbox_inches='tight')
+                output_path = output_path_dir + '\\figures\\' + 'opt_impact_' + precision + '_' + device + '_' + version_key + '.' + args.figure_format
+                runtime_fig.savefig(output_path, format=args.figure_format, dpi=1200, bbox_inches='tight')
 
 # for key, value in results_dict.items():
 #     value.sort(key=itemgetter(0))
@@ -467,5 +504,164 @@ if 2 in args.plots:
 
             # plt.show()
             fig.set_size_inches(args.height, args.width)
-            output_path = output_path_dir + '\\figures\\'  + args.output_filename +'_' + datasets[dataset_index] + '.eps'
-            fig.savefig(output_path, format='eps', dpi=1200, bbox_inches='tight')
+            output_path = output_path_dir + '\\figures\\'  + args.output_filename +'_' + datasets[dataset_index] + '.' + args.figure_format
+            fig.savefig(output_path, format=args.figure_format, dpi=1200, bbox_inches='tight')
+
+if 3 in args.plots:
+    # for precision in precision_dict.values():
+        # runtime_fig, runtime_ax = plt.subplots()
+        # runtime_rects = []
+
+        # inds = np.arange(datasets_count)  # the x locations for the groups
+
+        # runtime_ax.set_ylabel('Execution Time [ms]')
+        # runtime_ax.set_title('Comparison of best execution time across datasets, devices and versions (' + precision + ' precision)')
+        # runtime_ax.set_xticks(inds)
+        # runtime_ax.set_xticklabels(datasets)
+
+        # speedup_fig, speedup_ax = plt.subplots()
+        # speedup_rects = []
+
+        # speedup_ax.set_ylabel('Speedup')
+        # speedup_ax.set_title('Comparison of best speedups across datasets, devices and versions (' + precision + ' precision)')
+        # speedup_ax.set_xticks(inds)
+        # speedup_ax.set_xticklabels(datasets)
+        
+        filtered_results_dict = results_dict.items()
+
+        # Get all versions, double precision for V100 no sorting
+        device = device_dict['v100']
+        precision = precision_dict['double']
+        blocksize_outer = '128'
+        blocksize_flat = '512'
+        sort = sort_dict['-']
+
+        filtered_results_dict = {k: v for (k, v) in filtered_results_dict 
+            if precision in k and (blocksize_outer in k or blocksize_flat in k) and device in k and sort in k}
+
+        for result in filtered_results_dict.items():
+            flops = []
+            if precision == precision_dict['float'] and version_dict['cuda-option'] in result[0]: flops = flops_OptT_single
+            if precision == precision_dict['float'] and version_dict['cuda-multi'] in result[0]: flops = flops_OptsTB_single
+            if precision == precision_dict['double'] and version_dict['cuda-option'] in result[0]: flops = flops_OptT_double
+            if precision == precision_dict['double'] and version_dict['cuda-multi'] in result[0]: flops = flops_OptsTB_double
+            
+            print(flops)
+            print_str = result[0] + '\t\t'
+
+            for dataset_index in range(datasets_count):
+                gflops = flops[dataset_index]*(10e-9)/(result[1][dataset_index][0]*(10e-6))
+                memsize = result[1][dataset_index][1]/(1024*1024)
+                print_str += ' & ' + "{0:0.2f}".format(gflops) + ' & & ' + "{0:0.3f}".format(memsize)
+            
+            print(print_str)
+
+            # gflops_results = [a*(10e-9)/(b*(10e-3)) for a,b in zip(flops,filtered_best_results)]
+            # truncated_gflops = ["{0:0.2f}".format(s) for s in gflops_results]
+            # gflops_str = ' & '.join(truncated_gflops)
+            # print("GFLOP/s: " + gflops_str)
+
+            # truncated_memsize_results = ["{0:0.3f}".format(s) for s in filtered_best_results_memsize]
+            # results_str = ' '.join(truncated_memsize_results)
+            # print(results_str)
+
+        # count = 0
+        # for device in devices:
+        #     for version in version_dict.values():
+        #         filtered_results_dict = {k:v for (k,v) in results_dict.items() if precision in k and version in k and device in k}
+        #         filtered_kernel_names = np.array(list(filtered_results_dict.keys())).tolist()
+        #         filtered_best_results = []
+        #         filtered_best_results_memsize = []
+        #         filtered_best_speedups = []
+                
+        #         for dataset_index in range(datasets_count):
+        #             lst = np.array(list(filtered_results_dict.values()))[:,dataset_index].tolist()
+        #             filtered_kernel_timings, filtered_kernel_memsize = zip(*lst)
+        #             filtered_kernel_timings = list(filtered_kernel_timings)
+        #             filtered_kernel_memsize = list(filtered_kernel_memsize)
+        #             best_result = int(round(min(filtered_kernel_timings)/1000))
+        #             filtered_best_results.append(best_result)
+        #             best_result_index = filtered_kernel_timings.index(min(filtered_kernel_timings))
+        #             cpu_result = single_cpu_results[dataset_index] if precision == 'Single' else double_cpu_results[dataset_index]
+        #             speedup = cpu_result/best_result
+        #             filtered_best_speedups.append(speedup)
+        #             best_result_memsize = filtered_kernel_memsize[best_result_index]/(1024*1024)
+        #             filtered_best_results_memsize.append(best_result_memsize)
+
+        #             print(datasets[dataset_index] + ' ' +
+        #                 str(best_result) + ' ms ' +
+        #                 "{0:0.3f}".format(best_result_memsize) + ' MB ' +
+        #                 "{0:0.2f}".format(speedup) + 'x ' +
+        #                 filtered_kernel_names[best_result_index])
+
+        #         flops = []
+        #         if precision == precision_dict['float'] and version == version_dict['cuda-option']: flops = flops_OptT_single
+        #         if precision == precision_dict['float'] and version == version_dict['cuda-multi']: flops = flops_OptsTB_single
+        #         if precision == precision_dict['double'] and version == version_dict['cuda-option']: flops = flops_OptT_double
+        #         if precision == precision_dict['double'] and version == version_dict['cuda-multi']: flops = flops_OptsTB_double
+
+        #         print(filtered_best_results)
+
+        #         gflops_results = [a*(10e-9)/(b*(10e-3)) for a,b in zip(flops,filtered_best_results)]
+        #         truncated_gflops = ["{0:0.2f}".format(s) for s in gflops_results]
+        #         gflops_str = ' & '.join(truncated_gflops)
+        #         print("GFLOP/s: " + gflops_str)
+                
+                # Do not calcualte memory bandwidth
+                # num_bytes = 4 if precision == 'Single' else 8
+                # memband_results = [(a*num_bytes)*(10e-9)/(b*(10e-3)) for a,b in zip(mem_accesses,filtered_best_results)]
+                # truncated_memband = ["{0:0.2f}".format(s) for s in memband_results]
+                # memband_str = ' & '.join(truncated_memband)
+                # print("Mem bandwidth GB/s: " + memband_str)
+
+                # print([float("{0:0.2f}".format(s)) for s in filtered_best_speedups])
+                # truncated_speedups = ["{0:0.2f}$\\times$".format(s) for s in filtered_best_speedups]
+                # speedup_str = ' '.join(truncated_speedups)
+                # print(speedup_str)
+
+                # truncated_memsize_results = ["{0:0.3f}".format(s) for s in filtered_best_results_memsize]
+                # results_str = ' '.join(truncated_memsize_results)
+                # print(results_str)
+
+                # print()
+
+                # label = device + " " + version
+                
+                # kernel_rects = runtime_ax.bar(inds + offset[count]*width, filtered_best_results, width, color=colors[count], label=label)
+                # runtime_rects.append(kernel_rects)
+
+                # kernel_rects = speedup_ax.bar(inds + offset[count]*width, filtered_best_speedups, width, color=colors[count], label=label)
+                # speedup_rects.append(kernel_rects)
+
+                # count = count + 1
+
+        # rect_heights = []
+        # for kernel_rects in runtime_rects:
+        #     for rect in kernel_rects:
+        #         rect_heights.append(rect.get_height())
+        # max_rect_height = max(rect_heights)
+        
+        # for kernel_rects in runtime_rects: 
+        #     autolabel(runtime_ax, kernel_rects, 'center', 0.25, 0.9*max_rect_height, 45)
+
+        # runtime_ax.legend()
+        # # plt.show()
+        # runtime_fig.set_size_inches(args.height, args.width)
+        # output_path = output_path_dir + '\\figures\\' + 'best_runtimes_' + precision + '.' + args.figure_format
+        # runtime_fig.savefig(output_path, format=args.figure_format, dpi=1200, bbox_inches='tight')
+
+        # rect_heights = []
+        # for kernel_rects in speedup_rects:
+        #     for rect in kernel_rects:
+        #         rect_heights.append(rect.get_height())
+        # max_rect_height = max(rect_heights)
+        
+        # for kernel_rects in speedup_rects: 
+        #     autolabel(speedup_ax, kernel_rects, 'center', 0.25, 0.9*max_rect_height, 90)
+
+        # speedup_ax.legend()
+        # # plt.show()
+        # speedup_fig.set_size_inches(args.height, args.width)
+        # output_path = output_path_dir + '\\figures\\' + 'best_speedups_' + precision + '.' + args.figure_format
+        # speedup_fig.savefig(output_path, format=args.figure_format, dpi=1200, bbox_inches='tight')
+

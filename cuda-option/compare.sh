@@ -10,8 +10,10 @@ reg=""
 
 # program options
 device=0
-sorts="- w W h H"
+# sorts="- w W h H"
+sorts="-"
 block_sizes="64 128"
+block_sizes="128"
 versions="1 2 3 4"
 
 # data

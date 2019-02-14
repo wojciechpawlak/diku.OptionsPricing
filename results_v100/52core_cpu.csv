@@ -3,13 +3,5 @@ file,precision,registers,version,block,sort,kernel time,total time,memory
 0_UNIFORM_100000,double,-,-,-,-,-,564694,-
 1_RAND_100000,float,-,-,-,-,-,17249916,-
 1_RAND_100000,double,-,-,-,-,-,16029628,-
-2_RANDCONSTHEIGHT_100000,float,-,-,-,-,-,1333293,-
-2_RANDCONSTHEIGHT_100000,double,-,-,-,-,-,1191704,-
-3_RANDCONSTWIDTH_100000,float,-,-,-,-,-,3626657,-
-3_RANDCONSTWIDTH_100000,double,-,-,-,-,-,3411898,-
 4_SKEWED_100000,float,-,-,-,-,-,1928189,-
 4_SKEWED_100000,double,-,-,-,-,-,1789881,-
-5_SKEWEDCONSTHEIGHT_100000,float,-,-,-,-,-,1380553,-
-5_SKEWEDCONSTHEIGHT_100000,double,-,-,-,-,-,1302363,-
-6_SKEWEDCONSTWIDTH_100000,float,-,-,-,-,-,1367330,-
-6_SKEWEDCONSTWIDTH_100000,double,-,-,-,-,-,1254645,-
