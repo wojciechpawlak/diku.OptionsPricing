@@ -2,10 +2,17 @@
 
 cd ./seq/
 ./test.sh compile
-# cd ./cuda-option/
-cd ../cuda-option/
+cd ..
+cd ./cuda-option/
 ./test.sh compile
-cd ../cuda-multi/
-# cd ./cuda-multi/
+cd ..
+cd ./cuda-multi/
 ./test.sh compile
+cd ..
+cd ./test/
+make compile
+make compare
+cd ..
+cd ./data-generator/
+make compile
 cd ..
