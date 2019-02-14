@@ -38,31 +38,31 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     valmin.pu = PU_B(jmin, c.M);
     valmin.pm = PM_B(jmin, c.M);
     valmin.pd = PD_B(jmin, c.M);
-#ifdef DEV1
+#ifdef DEV
     if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, 0, valmin.pu, valmin.pm, valmin.pd);
 #endif
+
+    for (auto j = -c.jmax + 1; j < c.jmax; ++j)
+    {
+        auto jind = j + c.jmax;
+        jvalue &val = jvalues[jind];
+        val.rate = exp(-(real)j*c.dr*c.dt);
+        val.pu = PU_A(j, c.M);
+        val.pm = PM_A(j, c.M);
+        val.pd = PD_A(j, c.M);
+#ifdef DEV
+        if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, jind, val.pu, val.pm, val.pd);
+#endif
+    }
 
     jvalue &valmax = jvalues[c.width - 1];
     valmax.rate = exp(-(real)c.jmax*c.dr*c.dt);
     valmax.pu = PU_C(c.jmax, c.M);
     valmax.pm = PM_C(c.jmax, c.M);
     valmax.pd = PD_C(c.jmax, c.M);
-#ifdef DEV1
+#ifdef DEV
     if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, c.width - 1, valmax.pu, valmax.pm, valmax.pd);
 #endif
-
-    for (auto i = 1; i < c.width - 1; ++i)
-    {
-        jvalue &val = jvalues[i];
-        auto j = i + jmin;
-        val.rate = exp(-(real)j*c.dr*c.dt);
-        val.pu = PU_A(j, c.M);
-        val.pm = PM_A(j, c.M);
-        val.pd = PD_A(j, c.M);
-#ifdef DEV1
-        if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, val.pu, val.pm, val.pd);
-#endif
-    }
 
     // Forward propagation
     auto Qs = new real[c.width]();     // Qs[j]: j in jmin..jmax
@@ -80,7 +80,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     {
         auto jhigh = MIN(i, c.jmax);
         const auto expmAlphadt = alphas[i];
-#ifdef DEV
+#ifdef DEV1
         if (idx == PRINT_IDX) printf("%d %d: %.18f %.18f %d\n", idx, i, alpha, expmAlphadt, lastUsedYCTermIdx);
 #endif
 
@@ -134,7 +134,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         QsCopy = QsT;
         std::fill_n(QsCopy, c.width, 0);
 
-#ifdef DEV
+#ifdef DEV1
         if (idx == PRINT_IDX && i > PRINT_FIRST_ITER && i < PRINT_LAST_ITER)
         {
             printf("%d %d: ", idx, i);
@@ -149,9 +149,20 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
 #endif
 
 #ifdef FORWARD_GATHER
-#ifdef DEV
+#ifdef DEV1
     if (idx == PRINT_IDX)
-        printf("%d %d: %.18f %.18f %d\n", idx, 0, alpha, alphas[0], lastUsedYCTermIdx);
+        printf("%d %d: %.18f %.18f %.18f %d\n", idx, 0, 1.0, alpha, alphas[0], lastUsedYCTermIdx);
+#endif
+#ifdef DEV1
+    if (idx == PRINT_IDX && 0 >= PRINT_FIRST_ITER)
+    {
+        printf("%d %d: ", idx, 0);
+        for (auto k = 0; k < c.width; ++k)
+        {
+            printf("%d: %.18f ", k, Qs[k]);
+        }
+        printf("\n");
+    }
 #endif
     // Gather
     for (auto i = 1; i <= c.n; ++i)
@@ -247,12 +258,15 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
             // by summing up Qs from the next time step
             QsCopy[jind] = Q;
             aggregatedQs += Q * jval.rate;
+#ifdef DEV1
+            if (idx == PRINT_IDX && i == 1) printf("%d %d: %.18f %.18f %.18f\n", idx, jind, aggregatedQs, Q, jval.rate);
+#endif
         }
 
         alpha = computeAlpha(aggregatedQs, i - 1, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
         alphas[i] = exp(-alpha * c.dt);
-#ifdef DEV
-        if (idx == PRINT_IDX) printf("%d %d: %.18f %.18f %d\n", idx, i, alpha, alphas[i], lastUsedYCTermIdx);
+#ifdef DEV1
+        if (idx == PRINT_IDX) printf("%d %d: %.18f %.18f %.18f %d\n", idx, i, aggregatedQs, alpha, alphas[i], lastUsedYCTermIdx);
 #endif
 
         // Switch Qs
@@ -261,7 +275,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         QsCopy = QsT;
         std::fill_n(QsCopy, c.width, 0);
 
-#ifdef DEV
+#ifdef DEV1
         if (idx == PRINT_IDX && i > PRINT_FIRST_ITER && i < PRINT_LAST_ITER)
         {
             printf("%d %d: ", idx, i);
@@ -281,7 +295,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
 
     auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
     auto cashflowsRemaining = valuations.Cashflows[idx];
-#ifdef DEV
+#ifdef DEV2
     if (idx == PRINT_IDX) printf("%d %d: %d %d %f %f %d\n", idx, c.n, lastUsedCIdx, cashflowsRemaining, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
 #endif
     std::fill_n(price, c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
@@ -294,14 +308,14 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         auto expmAlphadt = alphas[i];
 
         const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastCStep - i) % c.ExerciseStepFrequency == 0;
-#ifdef DEV
+#ifdef DEV2
         if (idx == PRINT_IDX)
             printf("%d %d: %.18f %d %d %d %d\n", idx, i, expmAlphadt, isExerciseStep, lastCStep, (lastCStep - i) % c.ExerciseStepFrequency, (lastCStep - i) % c.ExerciseStepFrequency == 0);
 #endif
         // add coupon and repayments  if crossed a time step with a cashflow
         if (i == lastCStep - 1 && cashflowsRemaining > 0)
         {
-#ifdef DEV
+#ifdef DEV2
             if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax]);
 #endif
             for (auto j = -jhigh; j <= jhigh; ++j)
@@ -309,7 +323,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
                 const auto jind = j + c.jmax;
                 price[jind] += valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
             }
-#ifdef DEV
+#ifdef DEV2
             if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax]);
 #endif
             lastUsedCIdx--;
@@ -319,7 +333,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
 
         // calculate accrued interest from last cashflow
         const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(c.termStepCount, i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
-#ifdef DEV
+#ifdef DEV2
         if (idx == PRINT_IDX && i == lastCStep - 1)
             printf("%d %d: ai %f %d %d %d %f %d %d %f\n", idx, i, ai, c.termStepCount, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
                 valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1] - i,
@@ -368,13 +382,13 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         priceCopy = priceT;
 
         std::fill_n(priceCopy, c.width, 0);
-#ifdef DEV
+#ifdef DEV2
         if (idx == PRINT_IDX) printf("%d %d: %.18f\n", idx, i, price[c.jmax]);
 #endif
     }
 
     auto result = price[c.jmax];
-#ifdef DEV1
+#ifdef DEV
     if (idx == PRINT_IDX) printf("%d: res %.18f\n", idx, result);
 #endif
     delete[] jvalues;

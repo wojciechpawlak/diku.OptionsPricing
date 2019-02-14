@@ -1,7 +1,14 @@
 #ifndef ARGS_HPP
 #define ARGS_HPP
 
-#include "cxxopts/cxxopts.hpp"
+//#define USE_GETOPT_ARGS
+
+#ifdef USE_GETOPT_ARGS
+#include "../common/getoptpp/getopt_pp_standalone.h"
+#else
+#include "../common/cxxopts/cxxopts.hpp"
+#endif
+
 #include "ValuationConstants.hpp"
 
 namespace trinom
@@ -21,6 +28,23 @@ struct Args
 
     Args(int argc, char *argv[])
     {
+        std::vector<std::string> sortOpts;
+#ifdef USE_GETOPT_ARGS
+        GetOpt::GetOpt_pp cmd(argc, argv);
+
+        // Defaults for single arguments
+        runs = 0;
+        device = 0;
+
+        cmd >> GetOpt::Option('o', "valuations", valuations);
+        cmd >> GetOpt::Option('s', "sort", sortOpts);
+        cmd >> GetOpt::Option('v', "version", versions);
+        cmd >> GetOpt::Option('r', "runs", runs);
+        cmd >> GetOpt::Option('b', "block", blockSizes);
+        cmd >> GetOpt::Option('d', "device", device);
+        cmd >> GetOpt::OptionPresent('t', "test", test);
+
+#else
         cxxopts::Options options(argv[0], " - example command line options");
         options
             .positional_help("[optional args]")
@@ -30,7 +54,7 @@ struct Args
             .add_options()
             ("h,help", "Print help")
             ("o,valuations", "Input file", cxxopts::value<std::string>(valuations))
-            ("s,sort", "Sorting type applied to valuations", cxxopts::value<std::vector<std::string>>(sortVals))
+            ("s,sort", "Sorting type applied to valuations", cxxopts::value<std::vector<std::string>>(sortOpts))
             ("b,block", "Block size", cxxopts::value<std::vector<int>>(blockSizes))
             ("v,version", "Version of the kernel", cxxopts::value<std::vector<int>>(versions))
             ("d,device", "GPU Device number", cxxopts::value<int>(device)->default_value("0"))
@@ -45,8 +69,8 @@ struct Args
             std::cout << options.help({ "", "Group" }) << std::endl;
             exit(0);
         }
-
-        for (auto &sort : sortVals)
+#endif
+        for (auto &sort : sortOpts)
         {
             if (sort.length() == 1)
             {
