@@ -1,4 +1,4 @@
-CXX        = g++ -g -std=c++11
+CXX        = g++ -g -std=c++17
 
 
 SOURCES_CPP =RandomDataGenerator.cpp

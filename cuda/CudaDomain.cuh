@@ -319,12 +319,12 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
     auto T = valuations.Maturities[idx];
     const auto termUnitsInYearCount = lround((real)year / c.termUnit);
     const auto termStepCount = valuations.TermSteps[idx];
-    c.n = termStepCount * termUnitsInYearCount * T;
+    c.n = (int)lround(termStepCount * termUnitsInYearCount * T);
     c.dt = termUnitsInYearCount / (real)termStepCount; // [years]
     c.type = valuations.OptionTypes[idx];
+    c.X = valuations.StrikePrices[idx];
 
     const auto a = valuations.MeanReversionRates[idx];
-    c.X = valuations.StrikePrices[idx];
     const auto sigma = valuations.Volatilities[idx];
     const auto V = sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a);
     c.dr = sqrt(three * V);
@@ -333,6 +333,8 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
     // simplified computations
     // c.dr = sigma * sqrt(three * c.dt);
     // c.M = -a * c.dt;
+
+    c.mdrdt = -c.dr * c.dt;
 
     c.jmax = (int)(minus184 / c.M) + 1;
     c.width = 2 * c.jmax + 1;

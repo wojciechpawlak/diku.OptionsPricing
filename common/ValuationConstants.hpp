@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <cmath>
-#include <cassert>
 
 #include "CudaInterop.h"
 #include "Valuations.hpp"
@@ -15,6 +14,7 @@ struct ValuationConstants
 {
     real dt; // [years]
     real dr;
+    real mdrdt;
     real expmOasdt; // exponent of option adjusted spread - exp(-oas * dt)
     real X;
     real M;
@@ -46,9 +46,9 @@ struct ValuationConstants
         n = (int)lround((real)termStepCount * termUnitsInYearCount * T);
         dt = termUnitsInYearCount / (real)termStepCount; // [years]
         type = valuations.OptionTypes.at(idx);
+        X = valuations.StrikePrices.at(idx);
 
         auto a = valuations.MeanReversionRates.at(idx);
-        X = valuations.StrikePrices.at(idx);
         auto sigma = valuations.Volatilities.at(idx);
         auto V = sigma * sigma * (one - exp(-two * a * dt)) / (two * a);
         dr = sqrt(three * V);
@@ -57,6 +57,8 @@ struct ValuationConstants
         // simplified computations
         // dr = sigma * sqrt(three * dt);
         // M = -a * dt;
+
+        mdrdt = -dr*dt;
 
         jmax = (int)(minus184 / M) + 1;
         width = 2 * jmax + 1;

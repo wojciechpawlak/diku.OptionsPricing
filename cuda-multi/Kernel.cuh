@@ -298,7 +298,7 @@ namespace cuda
             const int j = threadIdx.x - c.jmax - firstThreadIdx;
             if (valGIdx < firstValGIdxBlockNext)
             {
-                args.getRates()[threadIdx.x] = exp(-(real)j*c.dr*c.dt);
+                args.getRates()[threadIdx.x] = exp((real)j*c.mdrdt);
                 if (j == c.jmax)
                 {
                     args.getPus()[threadIdx.x] = PU_C(c.jmax, c.M); args.getPms()[threadIdx.x] = PM_C(c.jmax, c.M); args.getPds()[threadIdx.x] = PD_C(c.jmax, c.M);

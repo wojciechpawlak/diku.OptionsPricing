@@ -103,8 +103,13 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     ValuationConstants c;
     computeConstants(c, valuations, idx);
 #ifdef DEV
-    if (idx == PRINT_IDX) printf("%d: %d %d %d %d\n", idx, c.firstYCTermIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
-    if (idx == PRINT_IDX) printf("%d: %f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
+    const auto a = valuations.MeanReversionRates[idx];
+    const auto sigma = valuations.Volatilities[idx];
+    const double tmp = -two * a * c.dt;
+    const auto exp_tmp = exp(tmp);
+    if (idx == PRINT_IDX) printf("%d: %d %.18f %.18f %.18f %.18f %.18f %.18f %.18f %d %d %d %d\n",
+        idx, c.n, a, sigma, tmp, exp_tmp, sigma * sigma * (one - exp_tmp) / (two * a), c.dr, c.dt, c.firstYCTermIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
+    if (idx == PRINT_IDX) printf("%d: %.18f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
 #endif
     args.init(valuations);
 
@@ -112,25 +117,25 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     for (auto j = -c.jmax; j <= c.jmax; ++j)
     {
         auto jind = j + c.jmax;
-        args.setRateAt(jind, exp(-(real)j*c.dr*c.dt));
+        args.setRateAt(jind, exp(c.mdrdt*j));
     }
 
     // Precompute probabilities for each node on the width on the tree (constant over forward and backward propagation)
     args.setPAt(0, 1, PU_B(-c.jmax, c.M)); args.setPAt(0, 2, PM_B(-c.jmax, c.M)); args.setPAt(0, 3, PD_B(-c.jmax, c.M));
 #ifdef DEV
-    if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, 0, args.getPAt(0, 1), args.getPAt(0, 2), args.getPAt(0, 3));
+    if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, 0, args.getRateAt(0), args.getPAt(0, 1), args.getPAt(0, 2), args.getPAt(0, 3));
 #endif
     for (auto j = -c.jmax + 1; j < c.jmax; ++j)
     {
         auto jind = j + c.jmax;
         args.setPAt(jind, 1, PU_A(j, c.M)); args.setPAt(jind, 2, PM_A(j, c.M)); args.setPAt(jind, 3, PD_A(j, c.M));
 #ifdef DEV
-        if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, jind, args.getPAt(jind, 1), args.getPAt(jind, 2), args.getPAt(jind, 3));
+        if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, jind, args.getRateAt(jind), args.getPAt(jind, 1), args.getPAt(jind, 2), args.getPAt(jind, 3));
 #endif
     }
     args.setPAt(c.width - 1, 1, PU_C(c.jmax, c.M)); args.setPAt(c.width - 1, 2, PM_C(c.jmax, c.M)); args.setPAt(c.width - 1, 3, PD_C(c.jmax, c.M));
 #ifdef DEV
-    if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, c.width - 1, args.getPAt(c.width - 1, 1), args.getPAt(c.width - 1, 2), args.getPAt(c.width - 1, 3));
+    if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, c.width - 1, args.getRateAt(c.width - 1), args.getPAt(c.width - 1, 1), args.getPAt(c.width - 1, 2), args.getPAt(c.width - 1, 3));
 #endif
 
     // Forward propagation

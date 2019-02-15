@@ -26,46 +26,49 @@ struct jvalue
 real computeSingleOption(const ValuationConstants &c, const Valuations &valuations, const int idx)
 {
 #ifdef DEV
-    if (idx == PRINT_IDX) printf("%d: %d %d %d %d\n", idx, c.firstYCTermIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
-    if (idx == PRINT_IDX) printf("%d: %f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
+    auto a = valuations.MeanReversionRates.at(idx);
+    auto sigma = valuations.Volatilities.at(idx);
+    const auto tmp = -two * a * c.dt;
+    if (idx == PRINT_IDX) printf("%d: %d %.18f %.18f %.18f %.18f %.18f %.18f %.18f %d %d %d %d\n",
+        idx, c.n, a, sigma, tmp, exp(tmp), sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a), c.dr, c.dt, c.firstYCTermIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
+    if (idx == PRINT_IDX) printf("%d: %.18f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
 #endif
     // Precompute probabilities and rates for all js.
     auto jvalues = new jvalue[c.width];
-    auto jmin = -c.jmax;
 
     jvalue &valmin = jvalues[0];
-    valmin.rate = exp(-(real)jmin*c.dr*c.dt);
-    valmin.pu = PU_B(jmin, c.M);
-    valmin.pm = PM_B(jmin, c.M);
-    valmin.pd = PD_B(jmin, c.M);
+    valmin.rate = exp(c.mdrdt*-c.jmax);
+    valmin.pu = PU_B(-c.jmax, c.M);
+    valmin.pm = PM_B(-c.jmax, c.M);
+    valmin.pd = PD_B(-c.jmax, c.M);
 #ifdef DEV
-    if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, 0, valmin.pu, valmin.pm, valmin.pd);
+    if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, 0, valmin.rate, valmin.pu, valmin.pm, valmin.pd);
 #endif
 
     for (auto j = -c.jmax + 1; j < c.jmax; ++j)
     {
         auto jind = j + c.jmax;
         jvalue &val = jvalues[jind];
-        val.rate = exp(-(real)j*c.dr*c.dt);
+        val.rate = exp(c.mdrdt*j);
         val.pu = PU_A(j, c.M);
         val.pm = PM_A(j, c.M);
         val.pd = PD_A(j, c.M);
 #ifdef DEV
-        if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, jind, val.pu, val.pm, val.pd);
+        if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, jind, val.rate, val.pu, val.pm, val.pd);
 #endif
     }
 
     jvalue &valmax = jvalues[c.width - 1];
-    valmax.rate = exp(-(real)c.jmax*c.dr*c.dt);
+    valmax.rate = exp(c.mdrdt*c.jmax);
     valmax.pu = PU_C(c.jmax, c.M);
     valmax.pm = PM_C(c.jmax, c.M);
     valmax.pd = PD_C(c.jmax, c.M);
 #ifdef DEV
-    if (idx == PRINT_IDX) printf("%d: %d: %f %f %f\n", idx, c.width - 1, valmax.pu, valmax.pm, valmax.pd);
+    if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, c.width - 1, valmax.rate, valmax.pu, valmax.pm, valmax.pd);
 #endif
 
     // Forward propagation
-    auto Qs = new real[c.width]();     // Qs[j]: j in jmin..jmax
+    auto Qs = new real[c.width]();     // Qs[j]: j in -jmax..jmax
     auto QsCopy = new real[c.width](); // QsCopy[j]
     Qs[c.jmax] = one;                  // Qs[0] = 1$
 
@@ -91,7 +94,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
             auto jval = jvalues[jind]; // precomputed probabilities and rates
             auto qexp = Qs[jind] * expmAlphadt * jval.rate;
 
-            if (j == jmin)
+            if (j == -c.jmax)
             {
                 // Bottom edge branching
                 QsCopy[jind + 2] += jval.pu * qexp; // up two
@@ -120,7 +123,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         auto aggregatedQs = zero;
         for (auto j = -jhigh1; j <= jhigh1; ++j)
         {
-            auto jind = j - jmin;      // array index for j
+            auto jind = j + c.jmax;      // array index for j
             auto jval = jvalues[jind]; // precomputed probabilities and rates
             aggregatedQs += QsCopy[jind] * jval.rate;
         }
@@ -355,7 +358,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
                        jval.pd * price[jind - 2]) *
                       discFactor;
             }
-            else if (j == jmin)
+            else if (j == -c.jmax)
             {
                 // Bottom edge branching
                 res = (jval.pu * price[jind + 2] +

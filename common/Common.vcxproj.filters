@@ -4,6 +4,9 @@
     <Filter Include="cxxopts">
       <UniqueIdentifier>{93d88f36-0869-48ea-ac2a-f715b741c9c0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="getoptpp">
+      <UniqueIdentifier>{8af5188f-d054-42b3-8a11-ed9a6b632aba}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Args.hpp" />
@@ -16,5 +19,16 @@
     <ClInclude Include="cxxopts\cxxopts.hpp">
       <Filter>cxxopts</Filter>
     </ClInclude>
+    <ClInclude Include="getoptpp\getopt_pp.h">
+      <Filter>getoptpp</Filter>
+    </ClInclude>
+    <ClInclude Include="getoptpp\getopt_pp_standalone.h">
+      <Filter>getoptpp</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="getoptpp\getopt_pp.cpp">
+      <Filter>getoptpp</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

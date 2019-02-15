@@ -122,9 +122,14 @@
     <ClInclude Include="CudaInterop.h" />
     <ClInclude Include="cxxopts\cxxopts.hpp" />
     <ClInclude Include="Domain.hpp" />
+    <ClInclude Include="getoptpp\getopt_pp.h" />
+    <ClInclude Include="getoptpp\getopt_pp_standalone.h" />
     <ClInclude Include="ValuationConstants.hpp" />
     <ClInclude Include="Valuations.hpp" />
     <ClInclude Include="Real.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="getoptpp\getopt_pp.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
