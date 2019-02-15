@@ -20,7 +20,7 @@ versions="1 2 3 4"
 data_path="../data"
 # files=("book" "options-1000" "options-60000")
 # files=("0_UNIFORM" "1_RAND" "2_RANDCONSTHEIGHT" "3_RANDCONSTWIDTH" "4_SKEWED" "5_SKEWEDCONSTHEIGHT" "6_SKEWEDCONSTWIDTH")
-files=("0_UNIFORM_1_CALL_PUT_EU_Berm_US_oas" "0_UNIFORM_10000" "0_UNIFORM_100000" "1_RAND_100000" "4_SKEWED_100000")
+files=("0_UNIFORM_1_CALL_PUT_EU_Berm_US_oas" "0_UNIFORM_10000" "0_UNIFORM_100000" "0_UNIFORM_100000_zero_EU" "0_UNIFORM_65536" "1_RAND_100000" "1_RAND_100000_zero_EU" "1_RAND_65536" "2_RANDCONSTHEIGHT_100000" "4_SKEWED_1_100000" "4_SKEWED_1_100000_zero_EU" "4_SKEWED_1_65536")
 
 # executables
 compare="../build/Compare"
@@ -66,7 +66,7 @@ compare() {
                         echo "Comparing ${exes[$index]} on $file (version $version, block size $block_size, sort $sort)"
                         {
                             ./${exes[$index]} -o $data_path/$file.in -s $sort -v $version -b $block_size -d $device
-                                if [ index = 0 || index = 1 ]; then
+                                if [ $index = 0 ] || [ $index = 1 ]; then
                                     cat $data_path/out32/$file.out
                                 else
                                     cat $data_path/out64/$file.out
