@@ -29,7 +29,7 @@ private:
 public:
     KernelArgsCoalesced(KernelArgsValuesCoalesced &v) : KernelArgsBase(v) { }
     
-    __device__ inline void init(const int valuationIdxBlock, const int idxBlock, const int idxBlockNext, const int valuationCount)
+    __device__ inline void init(const int valuationIdxBlock, const int idxBlock, const int idxBlockNext, const int valuationCount) override
     {
         this->valuationIdx = idxBlock + valuationIdxBlock;
         this->valuationCount = valuationCount;

@@ -95,7 +95,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <CodeGeneration>compute_60,sm_60;compute_52,sm_52</CodeGeneration>
+      <CodeGeneration>compute_52,sm_52</CodeGeneration>
       <PtxAsOptionV>true</PtxAsOptionV>
       <Defines>CUDA_ERROR_CHECK;USE_DOUBLE</Defines>
       <MaxRegCount>32</MaxRegCount>

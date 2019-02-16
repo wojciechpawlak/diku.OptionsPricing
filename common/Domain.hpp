@@ -3,12 +3,13 @@
 
 #include "CudaInterop.h"
 
+//#define DEV_LIMIT
 //#define DEV
 //#define DEV1
 //#define DEV2
-#define PRINT_IDX 0
+//#define PRINT_IDX 7
 #define PRINT_FIRST_ITER -1
-#define PRINT_LAST_ITER 11
+#define PRINT_LAST_ITER -1
 
 namespace trinom
 {

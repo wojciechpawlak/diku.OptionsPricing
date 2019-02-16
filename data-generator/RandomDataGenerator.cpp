@@ -90,12 +90,12 @@ struct RandValuation
 
     void computeWidth()
     {
-        Width = 2 * ((int)(minus184 / (exp(-MeanReversionRate * (lround((real)year / TermUnit) / (real)TermStep)) - one)) + 1) + 1;
+        Width = 2 * ((int)(minus184 / (exp(-MeanReversionRate * ((int)ceil((real)year / TermUnit) / (real)TermStep)) - one)) + 1) + 1;
     }
 
     void computeHeight()
     {
-        Height = TermStep * lround((real)year / TermUnit) * Maturity;
+        Height = TermStep * (int)ceil((real)year / TermUnit) * Maturity;
     }
 
     /**

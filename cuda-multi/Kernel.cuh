@@ -90,39 +90,39 @@ namespace cuda
                 return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 2 * sizeof(real)];
             }
 
+            __device__ inline volatile real* getLastCashflow()
+            {
+                return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 3 * sizeof(real)];
+            }
+
             __device__ inline volatile uint16_t* getNs()
             {
-                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 3 * sizeof(real)];
+                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 4 * sizeof(real)];
             }
 
             __device__ inline volatile uint16_t* getTermUnits()
             {
-                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + sizeof(uint16_t))];
+                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (4 * sizeof(real) + sizeof(uint16_t))];
             }
 
             __device__ inline volatile uint16_t* getLastUsedYCTermIdx()
             {
-                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + 2 * sizeof(uint16_t))];
+                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (4 * sizeof(real) + 2 * sizeof(uint16_t))];
             }
 
             __device__ inline volatile uint16_t* getLastUsedCIdx()
             {
-                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + 3 * sizeof(uint16_t))];
+                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (4 * sizeof(real) + 3 * sizeof(uint16_t))];
             }
 
             __device__ inline volatile uint16_t* getLastCStep()
             {
-                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + 4 * sizeof(uint16_t))];
-            }
-
-            __device__ inline volatile uint16_t* getLastCashflow()
-            {
-                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + 5 * sizeof(uint16_t))];
+                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (4 * sizeof(real) + 4 * sizeof(uint16_t))];
             }
 
             __device__ inline volatile uint16_t* getCashflowsRemaining()
             {
-                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + 6 * sizeof(uint16_t))];
+                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (4 * sizeof(real) + 5 * sizeof(uint16_t))];
             }
 
             __device__ inline real getPs(const int index, const int branch)
@@ -189,15 +189,17 @@ namespace cuda
                 width = valuations.Widths[idx];
                 args.getValuationInds()[threadIdx.x] = width;
 
-                auto termUnits = valuations.TermUnits[idx];
+                const auto termUnits = valuations.TermUnits[idx];
                 args.getTermUnits()[threadIdx.x] = termUnits;
-                auto termUnitsInYearCount = (int)lround((real)year / termUnits);
-                auto termStepCount = valuations.TermSteps[idx];
+                const auto termUnitsInYearCount = (int)ceil((real)year / termUnits);
+                const auto termStepCount = valuations.TermSteps[idx];
                 args.getDts()[threadIdx.x] = termUnitsInYearCount / (real)termStepCount;
                 args.getNs()[threadIdx.x] = termStepCount * termUnitsInYearCount * valuations.Maturities[idx];
                 args.getLastUsedYCTermIdx()[threadIdx.x] = 0;
-                args.getLastUsedCIdx()[threadIdx.x] = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
-                args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[args.getLastUsedCIdx()[threadIdx.x]];
+                const auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+                args.getLastUsedCIdx()[threadIdx.x] = lastUsedCIdx;
+                args.getLastCashflow()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
+                args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
                 args.getCashflowsRemaining()[threadIdx.x] = valuations.Cashflows[idx];
             }
             else
@@ -329,10 +331,10 @@ namespace cuda
                 const int jhigh = min(i, c.jmax);
 
                 // Precompute Qexp
-                if (i <= c.n && j >= -jhigh && j <= jhigh)
+                if (i <= args.getNs()[valLIdx] && j >= -jhigh && j <= jhigh)
                 {
                     const real expmAlphadt = args.getAlphas()[valLIdx];
-                    if (threadIdx.x == middleThreadIdx) args.setAlphaAt(i - 1, expmAlphadt, valLIdx);
+                    if (valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx) args.setAlphaAt(i - 1, expmAlphadt, valLIdx);
 //#ifdef DEV1
 //                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
 //                        printf("%d %d: %.18f %.18f\n", valGIdx, i, expmAlphadt, args.getAlphaAt(i - 1, valLIdx));
@@ -344,7 +346,7 @@ namespace cuda
 
                 // Forward iteration step, compute Qs in the next time step
                 real Q = 0;
-                if (i <= c.n && j >= -jhigh && j <= jhigh)
+                if (i <= args.getNs()[valLIdx] && j >= -jhigh && j <= jhigh)
                 {
                     const auto expu = j == jhigh ? zero : args.getQs()[threadIdx.x + 1];
                     const auto expm = args.getQs()[threadIdx.x];
@@ -427,7 +429,7 @@ namespace cuda
                 // Determine the new alpha using equation 30.22
                 // by summing up Qs from the next time step
                 real Qexp = sgmScanIncBlock<Add<real>>(args.getQs(), args.getValuationFlags());
-                if (i <= c.n && threadIdx.x == firstThreadIdx + c.width - 1)
+                if (valGIdx < firstValGIdxBlockNext && i <= args.getNs()[valLIdx] && threadIdx.x == firstThreadIdx + c.width - 1)
                 {
                     args.getQexps()[valLIdx] = Qexp;
                 }
@@ -463,20 +465,22 @@ namespace cuda
             if (idx < firstValGIdxBlockNext)
             {
                 const auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
-                args.getLastCashflow()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
 #ifdef DEV2
-                if (idx == PRINT_IDX) printf("%d %d: %d %d %f %f %d %f\n", idx, c.n, 
-                    lastUsedCIdx, args.getCashflowsRemaining()[threadIdx.x], valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx], args.getLastCashflow()[threadIdx.x]);
+                if (idx == PRINT_IDX)
+                    printf("%d %d: %d %d %.18f %.18f %d %.18f\n", idx, args.getNs()[threadIdx.x],
+                        lastUsedCIdx, args.getCashflowsRemaining()[threadIdx.x], valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx],
+                        valuations.CashflowSteps[lastUsedCIdx], args.getLastCashflow()[threadIdx.x]);
 #endif
                 args.getCashflowsRemaining()[threadIdx.x] -= 1;
-                if (valuations.CashflowSteps[lastUsedCIdx] <= c.n && args.getCashflowsRemaining()[threadIdx.x] > 0)
+                if (valuations.CashflowSteps[lastUsedCIdx] <= args.getNs()[threadIdx.x] && args.getCashflowsRemaining()[threadIdx.x] > 0)
                 {
                     args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx - 1];
                     args.getLastUsedCIdx()[threadIdx.x] -= 1;
                 }
                 else
                 {
-                    valuations.CashflowSteps[lastUsedCIdx];
+                    args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
+
                 }
             }
             __syncthreads();
@@ -485,6 +489,7 @@ namespace cuda
             {
                 args.getQs()[threadIdx.x] = args.getLastCashflow()[valLIdx];
             }
+
             __syncthreads();
 
             for (auto i = args.getMaxHeight() - 1; i >= 0; --i)
@@ -496,62 +501,45 @@ namespace cuda
                 auto isExerciseStep = false;
                 auto ai = zero;
 
-                if (i < c.n && j >= -jhigh && j <= jhigh)
+                // check if there is an option exercise at this step
+                // add coupon and repayment if crossed a time step with a cashflow
+                if (i < args.getNs()[valLIdx] && j >= -jhigh && j <= jhigh)
                 {
                     isExerciseStep = (i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency == 0);
 #ifdef DEV2
                     if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                        printf("%d %d: %d %d %d %d\n", 
-                            valGIdx, i, isExerciseStep, args.getLastCStep()[valLIdx], (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency,
+                        printf("%d %d: %.18f %d %d %d %d\n", 
+                            valGIdx, i, args.getAlphaAt(i, valLIdx), isExerciseStep, args.getLastCStep()[valLIdx], (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency,
                             (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency == 0);
-
-                    //if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                    //    printf("%d %d: ERROR %d %d %d %d %d\n",
-                    //        valGIdx, i, 
-                    //        args.getCashflowsRemaining()[valLIdx], (i == args.getLastCStep()[valLIdx] - 1 && args.getCashflowsRemaining()[valLIdx] > 0),
-                    //        args.getLastCStep()[valLIdx], args.getLastCStep()[valLIdx] - 1, args.getCashflowsRemaining()[valLIdx] > 0);
 #endif
-                    // add coupon and repayment if crossed a time step with a cashflow
                     if (i == args.getLastCStep()[valLIdx] - 1 && args.getCashflowsRemaining()[valLIdx] > 0)
                     {
 #ifdef DEV2
                         if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                            printf("%d %d: %d %d coupon: %.18f %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getCashflowsRemaining()[valLIdx], args.getQs()[threadIdx.x], args.getLastCashflow()[valLIdx]);
+                            printf("%d %d: %d %d coupon: %.18f %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getCashflowsRemaining()[valLIdx],
+                                args.getQs()[threadIdx.x], args.getLastCashflow()[valLIdx]);
 #endif
                         args.getQs()[threadIdx.x] += args.getLastCashflow()[valLIdx];
 #ifdef DEV2
                         if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
                             printf("%d %d: %d %d coupon: %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getCashflowsRemaining()[valLIdx], args.getQs()[threadIdx.x]);
 #endif
-                        
                     }
                 }
                 __syncthreads();
 
-                if (idx < firstValGIdxBlockNext && i == args.getLastCStep()[valLIdx] - 1 && args.getCashflowsRemaining()[valLIdx] > 0)
+                if (idx < firstValGIdxBlockNext && i < args.getNs()[threadIdx.x] && i == args.getLastCStep()[threadIdx.x] - 1 && args.getCashflowsRemaining()[threadIdx.x] > 0)
                 {
+                    args.getLastUsedCIdx()[threadIdx.x] = (args.getLastUsedCIdx()[threadIdx.x] - 1 >= 0) ? args.getLastUsedCIdx()[threadIdx.x] - 1 : 0;
                     auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
                     args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
                     args.getCashflowsRemaining()[threadIdx.x]--;
                 }
                 __syncthreads();
 
-#ifdef DEV2
-                if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx && i == args.getLastCStep()[valLIdx])
-                    {
-                        auto lastUsedCIdx = args.getLastUsedCIdx()[valLIdx];
-                        printf("%d %d: ai %f %d %d %d %f %d %d %f\n", valGIdx, i, ai, c.termStepCount, args.getLastCStep()[valLIdx],
-                            valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
-                            valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCStep()[valLIdx], valuations.CashflowSteps[lastUsedCIdx + 1] - i,
-                            (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCStep()[valLIdx] - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCStep()[valLIdx]));
-                    }
-#endif
-                if (i < c.n && j >= -jhigh && j <= jhigh)
+                if (i < args.getNs()[valLIdx] && j >= -jhigh && j <= jhigh)
                 {
-                    const auto expmAlphadt = args.getAlphaAt(i, valLIdx);
-//#ifdef DEV2
-//                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx) printf("%d %d: %.18f\n", valGIdx, i, expmAlphadt);
-//#endif
+                    const auto expmAlphadt = (valGIdx < firstValGIdxBlockNext) ? args.getAlphaAt(i, valLIdx) : 0.0;
                     const auto discFactor = expmAlphadt * args.getRates()[threadIdx.x] * c.expmOasdt;
 
                     real res;
@@ -584,40 +572,33 @@ namespace cuda
                     ai = isExerciseStep && args.getLastCStep()[valLIdx] != 0 && args.getCashflowsRemaining()[valLIdx] > 0
                         ? computeAccruedInterest(0, i, args.getLastCStep()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIdx()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIdx()[valLIdx]])
                         : zero;
-#ifdef DEV
-                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx && i == args.getLastCStep()[valLIdx])
-                    {
-                        printf("%d %d: ai %f lastCStep %d nextCStep %d coupon %f lastUsedCIdx %d\n", valGIdx, i, ai, args.getLastCStep()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIdx()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIdx()[valLIdx]], args.getLastUsedCIdx()[valLIdx]);
-                    }
-#endif
+
                     // after obtaining the result from (i+1) nodes, set the call for ith node
                     price = getOptionPayoff(isExerciseStep, c.X, c.type, res, ai);
-#ifdef DEV
-                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx && isExerciseStep)
-                    {
-                        printf("%d %d: ai %f lastCStep %d isExerciseStep %d res %f price %f\n", valGIdx, i, ai, args.getLastCStep()[valLIdx], isExerciseStep, res, price);
-                    }
-#endif
                 }
                 __syncthreads();
 
-                if (idx < firstValGIdxBlockNext && i == args.getLastCStep()[valLIdx])
+                if (idx < firstValGIdxBlockNext && i < args.getNs()[threadIdx.x] && i == args.getLastCStep()[threadIdx.x])
                 {
                     auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
                     args.getLastCashflow()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
-                    args.getLastUsedCIdx()[threadIdx.x] = (lastUsedCIdx - 1 >= 0) ? args.getLastUsedCIdx()[threadIdx.x] - 1 : 0;
-#ifdef DEV
-                    if (idx == PRINT_IDX)
-                        printf("%d %d: %d ai %f %d %d %d %f %f %d %d\n", idx, i, lastUsedCIdx, ai, c.termStepCount, args.getLastCStep()[threadIdx.x],
-                            valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx],
-                            valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCStep()[threadIdx.x], valuations.CashflowSteps[lastUsedCIdx + 1] - i);
-#endif
                 }
 
                 args.getQs()[threadIdx.x] = price;
 #ifdef DEV2
-                if (i < c.n  && valGIdx == PRINT_IDX && valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx) printf("%d %d: %.18f \n", valGIdx, i, args.getQs()[threadIdx.x]);
+                if (idx < firstValGIdxBlockNext && i < args.getNs()[threadIdx.x] && idx == PRINT_IDX && isExerciseStep && args.getLastCStep()[threadIdx.x] != 0 && args.getCashflowsRemaining()[threadIdx.x] > 0)
+                {
+                    auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
+                    printf("%d %d: ai %f %d %d %d %f %d %d %f\n", idx, i, ai, c.termStepCount, args.getLastCStep()[threadIdx.x],
+                        valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
+                        valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCStep()[threadIdx.x], valuations.CashflowSteps[lastUsedCIdx + 1] - i,
+                        (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCStep()[threadIdx.x] - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCStep()[threadIdx.x]));
+                }
+
+                if (i < args.getNs()[valLIdx] && valGIdx == PRINT_IDX && valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx)
+                    printf("%d %d: %.18f \n", valGIdx, i, args.getQs()[threadIdx.x]);
 #endif
+
                 __syncthreads();
             }
 
@@ -646,7 +627,7 @@ namespace cuda
             void runKernel(CudaValuations &valuations, std::vector<real> &results, thrust::device_vector<int32_t> &inds,
                 KernelArgsValuesT &values, const int totalAlphasCount, const int maxValuationsBlock)
             {
-                const int sharedMemorySize = (5 * sizeof(real) + sizeof(uint16_t)) * BlockSize + (3 * sizeof(real) + 7 * sizeof(uint16_t)) * maxValuationsBlock;
+                const int sharedMemorySize = (5 * sizeof(real) + sizeof(uint16_t)) * BlockSize + (4 * sizeof(real) + 6 * sizeof(uint16_t)) * maxValuationsBlock;
                 thrust::device_vector<real> alphas(totalAlphasCount);
                 thrust::device_vector<real> result(valuations.ValuationCount);
 
