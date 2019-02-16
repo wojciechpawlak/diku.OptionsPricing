@@ -120,6 +120,11 @@ namespace cuda
                 return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + 5 * sizeof(uint16_t))];
             }
 
+            __device__ inline volatile uint16_t* getCashflowsRemaining()
+            {
+                return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (3 * sizeof(real) + 6 * sizeof(uint16_t))];
+            }
+
             __device__ inline real getPs(const int index, const int branch)
             {
                 switch (branch)
@@ -193,6 +198,7 @@ namespace cuda
                 args.getLastUsedYCTermIdx()[threadIdx.x] = 0;
                 args.getLastUsedCIdx()[threadIdx.x] = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
                 args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[args.getLastUsedCIdx()[threadIdx.x]];
+                args.getCashflowsRemaining()[threadIdx.x] = valuations.Cashflows[threadIdx.x];
             }
             else
             {
@@ -458,14 +464,23 @@ namespace cuda
             {
                 const auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
                 args.getLastCashflow()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
-                args.getLastUsedCIdx()[threadIdx.x] -= 1;
+                
 #ifdef DEV
                 if (idx == PRINT_IDX)
                     printf("%d %d: %d ai %f %d %d %d %f %f %d %d\n", idx, 0, lastUsedCIdx, 0.0, c.termStepCount, args.getLastCStep()[threadIdx.x],
                         valuations.CashflowSteps[lastUsedCIdx], valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx],
                         valuations.CashflowSteps[lastUsedCIdx - 1], valuations.CashflowSteps[lastUsedCIdx - 1]);
 #endif
-                args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx - 1];
+                args.getCashflowsRemaining()[threadIdx.x] -= 1;
+                if (valuations.CashflowSteps[lastUsedCIdx] <= c.n && args.getCashflowsRemaining()[threadIdx.x] > 0)
+                {
+                    args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx - 1];
+                    args.getLastUsedCIdx()[threadIdx.x] -= 1;
+                }
+                else
+                {
+                    valuations.CashflowSteps[lastUsedCIdx];
+                }
             }
             __syncthreads();
 
@@ -492,21 +507,21 @@ namespace cuda
                         printf("%d %d: %d %d %d %d\n", valGIdx, i, isExerciseStep, args.getLastCStep()[valLIdx], ((args.getLastCStep()[valLIdx] - i) - i) % c.ExerciseStepFrequency, (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency == 0);
 #endif
                     // add coupon and repayment if crossed a time step with a cashflow
-                    if (i == args.getLastCStep()[valLIdx] - 1)
+                    if (i == args.getLastCStep()[valLIdx] - 1 && args.getCashflowsRemaining()[valLIdx] > 0)
                     {
 #ifdef DEV
                         if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                            printf("%d %d: %d coupon: %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getQs()[threadIdx.x]);
+                            printf("%d %d: %d %d coupon: %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getCashflowsRemaining()[valLIdx], args.getQs()[threadIdx.x]);
 #endif
                         args.getQs()[threadIdx.x] += args.getLastCashflow()[valLIdx];
 #ifdef DEV
                         if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                            printf("%d %d: %d coupon: %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getQs()[threadIdx.x]);
+                            printf("%d %d: %d %d coupon: %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getCashflowsRemaining()[valLIdx], args.getQs()[threadIdx.x]);
 #endif
                     }
                 }
 
-                if (idx < firstValGIdxBlockNext && i == args.getLastCStep()[valLIdx] - 1)
+                if (idx < firstValGIdxBlockNext && i == args.getLastCStep()[valLIdx] - 1 && args.getCashflowsRemaining()[valLIdx] > 0)
                 {
                     auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
                     args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
@@ -558,7 +573,9 @@ namespace cuda
                     }
 
                     // calculate accrued interest from cashflow
-                    ai = isExerciseStep && args.getLastCStep()[valLIdx] != 0 ? computeAccruedInterest(0, i, args.getLastCStep()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIdx()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIdx()[valLIdx]]) : zero;
+                    ai = isExerciseStep && args.getLastCStep()[valLIdx] != 0 && args.getCashflowsRemaining()[valLIdx] > 0
+                        ? computeAccruedInterest(0, i, args.getLastCStep()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIdx()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIdx()[valLIdx]])
+                        : zero;
 #ifdef DEV
                     if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx && i == args.getLastCStep()[valLIdx])
                     {
@@ -621,7 +638,7 @@ namespace cuda
             void runKernel(CudaValuations &valuations, std::vector<real> &results, thrust::device_vector<int32_t> &inds,
                 KernelArgsValuesT &values, const int totalAlphasCount, const int maxValuationsBlock)
             {
-                const int sharedMemorySize = (5 * sizeof(real) + sizeof(uint16_t)) * BlockSize + (3 * sizeof(real) + 6 * sizeof(uint16_t)) * maxValuationsBlock;
+                const int sharedMemorySize = (5 * sizeof(real) + sizeof(uint16_t)) * BlockSize + (3 * sizeof(real) + 7 * sizeof(uint16_t)) * maxValuationsBlock;
                 thrust::device_vector<real> alphas(totalAlphasCount);
                 thrust::device_vector<real> result(valuations.ValuationCount);
 
