@@ -183,7 +183,7 @@ namespace cuda
 
             if (idx < firstValGIdxBlockNext) // Do not fetch valuations from next block
             {
-#ifdef DEV1
+#ifdef DEV
                 printf("idx %d threadIdx.x %d blockIdx.x %d\n", idx, threadIdx.x, blockIdx.x);
 #endif
                 width = valuations.Widths[idx];
@@ -198,7 +198,7 @@ namespace cuda
                 args.getLastUsedYCTermIdx()[threadIdx.x] = 0;
                 args.getLastUsedCIdx()[threadIdx.x] = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
                 args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[args.getLastUsedCIdx()[threadIdx.x]];
-                args.getCashflowsRemaining()[threadIdx.x] = valuations.Cashflows[threadIdx.x];
+                args.getCashflowsRemaining()[threadIdx.x] = valuations.Cashflows[idx];
             }
             else
             {
@@ -251,7 +251,7 @@ namespace cuda
             ValuationConstants c;
             args.init(valLIdx, firstValGIdxBlock, firstValGIdxBlockNext, valuations.ValuationCount);
             valGIdx = args.getValuationIdx();
-#ifdef DEV
+#ifdef DEV_LIMIT
             //if (valGIdx != 0 && valGIdx != 1) return;
             if (valGIdx != PRINT_IDX) return;
 #endif
@@ -259,8 +259,8 @@ namespace cuda
             if (valGIdx < firstValGIdxBlockNext)
             {
                 computeConstants(c, valuations, args.getValuationIdx());
-#ifdef DEV1
-                if (/*valGIdx == PRINT_IDX &&*/ threadIdx.x == middleThreadIdx)
+#ifdef DEV
+                if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
                 {
                     printf("threadIdx.x %d blockIdx.x %d firstValGIdxBlock %d firstValGIdxBlockNext %d idx %d firstThreadIdx %d valLIdx %d valGIdx %d c.jmax %d\n",
                         threadIdx.x, blockIdx.x, firstValGIdxBlock, firstValGIdxBlockNext, idx, firstThreadIdx, valLIdx, valGIdx, c.jmax);
@@ -278,29 +278,7 @@ namespace cuda
 
             // --------------------------------------------------
 
-            // Set the initial alpha and Q values
-            if (idx < firstValGIdxBlockNext)
-            {
-                const auto alpha = interpolateRateAtTimeStep(args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &args.getLastUsedYCTermIdx()[threadIdx.x]);
-                args.getAlphas()[threadIdx.x] = exp(-alpha * c.dt);
-#ifdef DEV1
-                if (idx == PRINT_IDX)
-                    printf("%d %d: %.18f %.18f threadIdx %d dt %f termUnit %d n %d\n",
-                        idx, 0, alpha, args.getAlphas()[threadIdx.x], threadIdx.x, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], args.getNs()[threadIdx.x]);
-#endif
-            }
-            __syncthreads();
-            if (valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx)
-            {
-                args.setAlphaAt(0, args.getAlphas()[valLIdx], valLIdx);
-                args.getQs()[threadIdx.x] = one; // Initialize the root of the tree
-#ifdef DEV1
-                if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                    printf("%d %d: %.18f %.18f %d\n", valGIdx, 0, args.getAlphas()[valLIdx], args.getAlphaAt(0, valLIdx), args.getLastUsedYCTermIdx()[valLIdx]);
-#endif
-            }
-            __syncthreads();
-
+            // Precompute exponent of rates for each node on the width on the tree (constant over forward propagation)
             const int j = threadIdx.x - c.jmax - firstThreadIdx;
             if (valGIdx < firstValGIdxBlockNext)
             {
@@ -317,13 +295,35 @@ namespace cuda
                 {
                     args.getPus()[threadIdx.x] = PU_A(j, c.M); args.getPms()[threadIdx.x] = PM_A(j, c.M); args.getPds()[threadIdx.x] = PD_A(j, c.M);
                 }
-#ifdef DEV1
+#ifdef DEV
                 if (valGIdx == PRINT_IDX) printf("%d: %d: %d %d %d %d %f %f %f %f\n", valGIdx, 0, blockIdx.x, threadIdx.x, j, c.jmax, args.getRates()[threadIdx.x], args.getPs(threadIdx.x, 1), args.getPs(threadIdx.x, 2), args.getPs(threadIdx.x, 3));
 #endif
             }
             __syncthreads();
 
             // Forward propagation
+            if (idx < firstValGIdxBlockNext)
+            {
+                const auto alpha = interpolateRateAtTimeStep(args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &args.getLastUsedYCTermIdx()[threadIdx.x]);
+                args.getAlphas()[threadIdx.x] = exp(-alpha * c.dt);
+//#ifdef DEV1
+//                if (idx == PRINT_IDX)
+//                    printf("%d %d: %.18f %.18f threadIdx %d dt %f termUnit %d n %d\n",
+//                        idx, 0, alpha, args.getAlphas()[threadIdx.x], threadIdx.x, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], args.getNs()[threadIdx.x]);
+//#endif
+            }
+            __syncthreads();
+            if (valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx)
+            {
+                args.getQs()[threadIdx.x] = one; // Initialize the root of the tree
+                args.setAlphaAt(0, args.getAlphas()[valLIdx], valLIdx);
+#ifdef DEV1
+                if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
+                    printf("%d %d: %.18f %.18f %.18f %d\n", valGIdx, 0, 1.0, args.getAlphas()[valLIdx], args.getAlphaAt(0, valLIdx), args.getLastUsedYCTermIdx()[valLIdx]);
+#endif
+            }
+            __syncthreads();
+
             for (int i = 1; i <= args.getMaxHeight(); ++i)
             {
                 const int jhigh = min(i, c.jmax);
@@ -333,10 +333,10 @@ namespace cuda
                 {
                     const real expmAlphadt = args.getAlphas()[valLIdx];
                     if (threadIdx.x == middleThreadIdx) args.setAlphaAt(i - 1, expmAlphadt, valLIdx);
-#ifdef DEV1
-                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                        printf("%d %d: %.18f %.18f\n", valGIdx, i, expmAlphadt, args.getAlphaAt(i - 1, valLIdx));
-#endif
+//#ifdef DEV1
+//                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
+//                        printf("%d %d: %.18f %.18f\n", valGIdx, i, expmAlphadt, args.getAlphaAt(i - 1, valLIdx));
+//#endif
 
                     args.getQs()[threadIdx.x] *= expmAlphadt * args.getRates()[threadIdx.x];
                 }
@@ -438,7 +438,7 @@ namespace cuda
                     const auto alpha = computeAlpha(args.getQexps()[threadIdx.x], i - 1, args.getDts()[threadIdx.x], args.getTermUnits()[threadIdx.x], c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &args.getLastUsedYCTermIdx()[threadIdx.x]);
                     args.getAlphas()[threadIdx.x] = exp(-alpha * c.dt);
 #ifdef DEV1
-                    if (idx == PRINT_IDX) printf("%d %d: %.18f %.18f %d\n", idx, i, alpha, args.getAlphas()[threadIdx.x], args.getLastUsedYCTermIdx()[threadIdx.x]);
+                    if (idx == PRINT_IDX) printf("%d %d: %.18f %.18f %.18f %d\n", idx, i, args.getQexps()[threadIdx.x], alpha, args.getAlphas()[threadIdx.x], args.getLastUsedYCTermIdx()[threadIdx.x]);
 #endif
                 }
                 __syncthreads();
@@ -464,12 +464,9 @@ namespace cuda
             {
                 const auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
                 args.getLastCashflow()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
-                
-#ifdef DEV
-                if (idx == PRINT_IDX)
-                    printf("%d %d: %d ai %f %d %d %d %f %f %d %d\n", idx, 0, lastUsedCIdx, 0.0, c.termStepCount, args.getLastCStep()[threadIdx.x],
-                        valuations.CashflowSteps[lastUsedCIdx], valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx],
-                        valuations.CashflowSteps[lastUsedCIdx - 1], valuations.CashflowSteps[lastUsedCIdx - 1]);
+#ifdef DEV2
+                if (idx == PRINT_IDX) printf("%d %d: %d %d %f %f %d %f\n", idx, c.n, 
+                    lastUsedCIdx, args.getCashflowsRemaining()[threadIdx.x], valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx], args.getLastCashflow()[threadIdx.x]);
 #endif
                 args.getCashflowsRemaining()[threadIdx.x] -= 1;
                 if (valuations.CashflowSteps[lastUsedCIdx] <= c.n && args.getCashflowsRemaining()[threadIdx.x] > 0)
@@ -502,34 +499,45 @@ namespace cuda
                 if (i < c.n && j >= -jhigh && j <= jhigh)
                 {
                     isExerciseStep = (i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency == 0);
-#ifdef DEV
+#ifdef DEV2
                     if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                        printf("%d %d: %d %d %d %d\n", valGIdx, i, isExerciseStep, args.getLastCStep()[valLIdx], ((args.getLastCStep()[valLIdx] - i) - i) % c.ExerciseStepFrequency, (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency == 0);
+                        printf("%d %d: %d %d %d %d\n", 
+                            valGIdx, i, isExerciseStep, args.getLastCStep()[valLIdx], (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency,
+                            (args.getLastCStep()[valLIdx] - i) % c.ExerciseStepFrequency == 0);
+
+                    //if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
+                    //    printf("%d %d: ERROR %d %d %d %d %d\n",
+                    //        valGIdx, i, 
+                    //        args.getCashflowsRemaining()[valLIdx], (i == args.getLastCStep()[valLIdx] - 1 && args.getCashflowsRemaining()[valLIdx] > 0),
+                    //        args.getLastCStep()[valLIdx], args.getLastCStep()[valLIdx] - 1, args.getCashflowsRemaining()[valLIdx] > 0);
 #endif
                     // add coupon and repayment if crossed a time step with a cashflow
                     if (i == args.getLastCStep()[valLIdx] - 1 && args.getCashflowsRemaining()[valLIdx] > 0)
                     {
-#ifdef DEV
+#ifdef DEV2
                         if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                            printf("%d %d: %d %d coupon: %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getCashflowsRemaining()[valLIdx], args.getQs()[threadIdx.x]);
+                            printf("%d %d: %d %d coupon: %.18f %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getCashflowsRemaining()[valLIdx], args.getQs()[threadIdx.x], args.getLastCashflow()[valLIdx]);
 #endif
                         args.getQs()[threadIdx.x] += args.getLastCashflow()[valLIdx];
-#ifdef DEV
+#ifdef DEV2
                         if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
                             printf("%d %d: %d %d coupon: %.18f\n", valGIdx, i, args.getLastUsedCIdx()[valLIdx], args.getCashflowsRemaining()[valLIdx], args.getQs()[threadIdx.x]);
 #endif
+                        
                     }
                 }
+                __syncthreads();
 
                 if (idx < firstValGIdxBlockNext && i == args.getLastCStep()[valLIdx] - 1 && args.getCashflowsRemaining()[valLIdx] > 0)
                 {
                     auto lastUsedCIdx = args.getLastUsedCIdx()[threadIdx.x];
                     args.getLastCStep()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
+                    args.getCashflowsRemaining()[threadIdx.x]--;
                 }
                 __syncthreads();
 
-#ifdef DEV1
-                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx && i == args.getLastCStep()[valLIdx])
+#ifdef DEV2
+                if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx && i == args.getLastCStep()[valLIdx])
                     {
                         auto lastUsedCIdx = args.getLastUsedCIdx()[valLIdx];
                         printf("%d %d: ai %f %d %d %d %f %d %d %f\n", valGIdx, i, ai, c.termStepCount, args.getLastCStep()[valLIdx],
@@ -541,9 +549,9 @@ namespace cuda
                 if (i < c.n && j >= -jhigh && j <= jhigh)
                 {
                     const auto expmAlphadt = args.getAlphaAt(i, valLIdx);
-#ifdef DEV1
-                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx) printf("%d %d: %.18f\n", valGIdx, i, expmAlphadt);
-#endif
+//#ifdef DEV2
+//                    if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx) printf("%d %d: %.18f\n", valGIdx, i, expmAlphadt);
+//#endif
                     const auto discFactor = expmAlphadt * args.getRates()[threadIdx.x] * c.expmOasdt;
 
                     real res;
@@ -607,8 +615,8 @@ namespace cuda
                 }
 
                 args.getQs()[threadIdx.x] = price;
-#ifdef DEV
-                if (valGIdx == PRINT_IDX && valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx) printf("%d %d: %.18f \n", valGIdx, i, args.getQs()[threadIdx.x]);
+#ifdef DEV2
+                if (i < c.n  && valGIdx == PRINT_IDX && valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx) printf("%d %d: %.18f \n", valGIdx, i, args.getQs()[threadIdx.x]);
 #endif
                 __syncthreads();
             }
@@ -616,7 +624,7 @@ namespace cuda
             if (valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx)
             {
                 args.values.res[valGIdx] = args.getQs()[threadIdx.x];
-#ifdef DEV1
+#ifdef DEV
                 printf("%d: res %.18f\n", valGIdx, args.getQs()[threadIdx.x]);
 #endif
             }

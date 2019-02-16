@@ -149,7 +149,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         printf("%d %d: %.18f %.18f %.18f %d\n", idx, 0, 1.0, alpha, args.getAlphaAt(0), lastUsedYCTermIdx);
 #endif
 #ifdef DEV1
-    if (idx == PRINT_IDX && 0 >= PRINT_FIRST_ITER)
+    if (idx == PRINT_IDX && 0 >= PRINT_FIRST_ITER && 0 <= PRINT_LAST_ITER)
     {
         printf("%d %d: ", idx, 0);
         for (auto k = 0; k < c.width; ++k)
@@ -250,9 +250,9 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
             // by summing up Qs from the next time step
             args.setQCopyAt(jind, Q);
             aggregatedQs += Q * args.getRateAt(jind);
-#ifdef DEV1
-            if (idx == PRINT_IDX && i == 1) printf("%d %d: %.18f %.18f %.18f\n", idx, jind, aggregatedQs, Q, args.getRateAt(jind));
-#endif
+//#ifdef DEV1
+//            if (idx == PRINT_IDX && i == 1) printf("%d %d: %.18f %.18f %.18f\n", idx, jind, aggregatedQs, Q, args.getRateAt(jind));
+//#endif
         }
         
         alpha = computeAlpha(aggregatedQs, i - 1, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
@@ -280,10 +280,11 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     // Backward propagation
     auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
     auto cashflowsRemaining = valuations.Cashflows[idx];
+    auto lastCashflow = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
 #ifdef DEV2
     if (idx == PRINT_IDX) printf("%d %d: %d %d %f %f %d\n", idx, c.n, lastUsedCIdx, cashflowsRemaining, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
 #endif
-    args.fillQs(c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
+    args.fillQs(c.width, lastCashflow); // initialize to par/face value: last repayment + last coupon
     cashflowsRemaining--;
     auto lastCStep = valuations.CashflowSteps[lastUsedCIdx] <= c.n && cashflowsRemaining > 0 ? valuations.CashflowSteps[--lastUsedCIdx] : valuations.CashflowSteps[lastUsedCIdx];
 
@@ -301,13 +302,14 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         // add coupon and repayment if crossed a time step with a cashflow
         if (i == lastCStep - 1 && cashflowsRemaining > 0)
         {
+            lastCashflow = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
 #ifdef DEV2
-            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, args.getQAt(c.jmax));
+            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, args.getQAt(c.jmax), lastCashflow);
 #endif
             for (auto j = -jhigh; j <= jhigh; ++j)
             {
                 const auto jind = j + c.jmax;      // array index for j
-                args.setQAt(jind, args.getQAt(jind) + valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]);
+                args.setQAt(jind, args.getQAt(jind) + lastCashflow);
             }
 #ifdef DEV2
             if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, args.getQAt(c.jmax));
