@@ -30,7 +30,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     auto sigma = valuations.Volatilities.at(idx);
     const auto tmp = -two * a * c.dt;
     if (idx == PRINT_IDX) printf("%d: %d %.18f %.18f %.18f %.18f %.18f %.18f %.18f %d %d %d %d\n",
-        idx, c.n, a, sigma, tmp, exp(tmp), sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a), c.dr, c.dt, c.firstYCTermIdx, c.LastExerciseStep, c.FirstExerciseStep, c.ExerciseStepFrequency);
+        idx, c.n, a, sigma, tmp, exp(tmp), sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a), c.dr, c.dt, c.firstYCTermIdx, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency);
     if (idx == PRINT_IDX) printf("%d: %.18f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
 #endif
     // Precompute probabilities and rates for all js.
@@ -310,10 +310,10 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         auto jhigh = MIN(i, c.jmax);
         auto expmAlphadt = alphas[i];
 
-        const auto isExerciseStep = i <= c.LastExerciseStep && i >= c.FirstExerciseStep && (lastCStep - i) % c.ExerciseStepFrequency == 0;
+        const auto isExerciseStep = i <= c.lastExerciseStep && i >= c.firstExerciseStep && (lastCStep - i) % c.exerciseStepFrequency == 0;
 #ifdef DEV2
         if (idx == PRINT_IDX)
-            printf("%d %d: %.18f %d %d %d %d\n", idx, i, expmAlphadt, isExerciseStep, lastCStep, (lastCStep - i) % c.ExerciseStepFrequency, (lastCStep - i) % c.ExerciseStepFrequency == 0);
+            printf("%d %d: %.18f %d %d %d %d\n", idx, i, expmAlphadt, isExerciseStep, lastCStep, (lastCStep - i) % c.exerciseStepFrequency, (lastCStep - i) % c.exerciseStepFrequency == 0);
 #endif
         // add coupon and repayments  if crossed a time step with a cashflow
         if (i == lastCStep - 1 && cashflowsRemaining > 0)

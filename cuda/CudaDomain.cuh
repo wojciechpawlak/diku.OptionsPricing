@@ -343,9 +343,9 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
 
     c.firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
 
-    c.LastExerciseStep = valuations.LastExerciseSteps[idx];
-    c.FirstExerciseStep = valuations.FirstExerciseSteps[idx];
-    c.ExerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
+    c.lastExerciseStep = valuations.LastExerciseSteps[idx];
+    c.firstExerciseStep = valuations.FirstExerciseSteps[idx];
+    c.exerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
 
     c.firstYieldCurveRate = &valuations.YieldCurveRates[c.firstYCTermIdx];
     c.firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[c.firstYCTermIdx];

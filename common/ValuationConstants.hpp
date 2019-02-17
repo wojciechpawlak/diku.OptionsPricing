@@ -27,9 +27,9 @@ struct ValuationConstants
 
     uint16_t firstYCTermIdx;
 
-    uint16_t LastExerciseStep;
-    uint16_t FirstExerciseStep;
-    uint16_t ExerciseStepFrequency;
+    uint16_t lastExerciseStep;
+    uint16_t firstExerciseStep;
+    uint16_t exerciseStepFrequency;
 
     const real *firstYieldCurveRate;
     const uint16_t *firstYieldCurveTimeStep;
@@ -69,9 +69,9 @@ struct ValuationConstants
         //assert(valuations.CashflowIndices != NULL);
         firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
 
-        LastExerciseStep = valuations.LastExerciseSteps[idx];
-        FirstExerciseStep = valuations.FirstExerciseSteps[idx];
-        ExerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
+        lastExerciseStep = valuations.LastExerciseSteps[idx];
+        firstExerciseStep = valuations.FirstExerciseSteps[idx];
+        exerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
 
         firstYieldCurveRate = &valuations.YieldCurveRates[firstYCTermIdx];
         firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[firstYCTermIdx];

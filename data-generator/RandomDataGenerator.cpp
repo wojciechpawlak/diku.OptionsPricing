@@ -385,7 +385,7 @@ private:
         string dataFile = outputPath + filename + ".in";
         valuations.writeToFile(dataFile);
         cout << "finished writing to " << dataFile << endl;
-        
+
         randValuations.clear();
     }
 
