@@ -316,7 +316,7 @@ bool operator <(const CudaRuntime& x, const CudaRuntime& y) {
 __device__ void computeConstants(ValuationConstants &c, const KernelValuations &valuations, const int idx)
 {
     c.termUnit = valuations.TermUnits[idx];
-    auto T = valuations.Maturities[idx];
+    const auto T = valuations.Maturities[idx];
     const auto termUnitsInYearCount = (int)ceil((real)year / c.termUnit);
     const auto termStepCount = valuations.TermSteps[idx];
     c.n = (int)ceil(termStepCount * termUnitsInYearCount * T);
@@ -327,26 +327,24 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
     const auto a = valuations.MeanReversionRates[idx];
     const auto sigma = valuations.Volatilities[idx];
     const auto V = sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a);
-    c.dr = sqrt(three * V);
+    const auto dr = sqrt(three * V);
     c.M = exp(-a * c.dt) - one;
 
     // simplified computations
     // c.dr = sigma * sqrt(three * c.dt);
     // c.M = -a * c.dt;
 
-    c.mdrdt = -c.dr * c.dt;
-
+    c.mdrdt = -dr * c.dt;
     c.jmax = (int)(minus184 / c.M) + 1;
-    c.width = 2 * c.jmax + 1;
-
     c.expmOasdt = exp(-(valuations.Spreads[idx] / hundred)*c.dt);
 
-    c.firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
+    c.width = 2 * c.jmax + 1;
 
     c.lastExerciseStep = valuations.LastExerciseSteps[idx];
     c.firstExerciseStep = valuations.FirstExerciseSteps[idx];
     c.exerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
 
+    const auto firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
     c.firstYieldCurveRate = &valuations.YieldCurveRates[c.firstYCTermIdx];
     c.firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[c.firstYCTermIdx];
     c.yieldCurveTermCount = valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]];

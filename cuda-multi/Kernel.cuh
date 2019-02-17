@@ -40,6 +40,8 @@ public:
 
     __device__ virtual int getValuationIdx() const = 0;
 
+    // 8-byte size variables, aligned to 8-byte (64-bit) border
+
     __device__ inline volatile real* getQs()
     {
         return (real *)&sh_mem;
@@ -50,144 +52,143 @@ public:
         return (int32_t *)&sh_mem;  // Sharing the same array with Qs!
     }
 
-    __device__ inline volatile uint16_t* getValuationFlags()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * sizeof(real)];
-    }
-
     __device__ inline volatile real* getRates()
     {
-        return (real *)&sh_mem[blockDim.x * (sizeof(real) + sizeof(uint16_t))];
+        return (real *)&sh_mem[blockDim.x * (sizeof(real))];
     }
 
     __device__ inline volatile real* getPus()
     {
-        return (real *)&sh_mem[blockDim.x * (2 * sizeof(real) + sizeof(uint16_t))];
+        return (real *)&sh_mem[blockDim.x * (2 * sizeof(real))];
     }
 
     __device__ inline volatile real* getPms()
     {
-        return (real *)&sh_mem[blockDim.x * (3 * sizeof(real) + sizeof(uint16_t))];
+        return (real *)&sh_mem[blockDim.x * (3 * sizeof(real))];
     }
 
     __device__ inline volatile real* getPds()
     {
-        return (real *)&sh_mem[blockDim.x * (4 * sizeof(real) + sizeof(uint16_t))];
+        return (real *)&sh_mem[blockDim.x * (4 * sizeof(real))];
     }
 
     __device__ inline volatile real* getAlphas()
     {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t))];
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real))];
     }
 
     __device__ inline volatile real* getQexps()
     {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * sizeof(real)];
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * sizeof(real)];
     }
 
     __device__ inline volatile real* getDts()
     {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 2 * sizeof(real)];
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 2 * sizeof(real)];
     }
 
     __device__ inline volatile real* getMdrdts()
     {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 3 * sizeof(real)];
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 3 * sizeof(real)];
     }
 
     __device__ inline volatile real* getMs()
     {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 4 * sizeof(real)];
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 4 * sizeof(real)];
     }
 
     __device__ inline volatile real* getExpmOasdts()
     {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 5 * sizeof(real)];
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 5 * sizeof(real)];
     }
 
     __device__ inline volatile real* getLastCashflows()
     {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 6 * sizeof(real)];
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 6 * sizeof(real)];
     }
 
     __device__ inline volatile real* getStrikes() // X
     {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * 7 * sizeof(real)];
-    }
-
-    __device__ inline volatile uint16_t* getJmaxs()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real))];
-    }
-
-    __device__ inline volatile uint16_t* getNs()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getTermUnits()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 2 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getLastUsedYCTermIndices()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 3 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getLastUsedCIndices()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 4 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getLastCSteps()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 5 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getRemainingCashflows()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 6 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getFirstYCTermIndices()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 7 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getYieldCurveTermCounts()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 8 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getLastExerciseSteps()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 9 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getFirstExerciseSteps()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 10 * sizeof(uint16_t))];
-    }
-
-    __device__ inline volatile uint16_t* getExerciseStepFrequencies()
-    {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 11 * sizeof(uint16_t))];
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 7 * sizeof(real)];
     }
 
     __device__ inline volatile real** getFirstYieldCurveRates()
     {
-        return (real **)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 12 * sizeof(uint16_t))];
+        return (real **)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 8 * sizeof(real)];
     }
 
     __device__ inline volatile uint16_t** getFirstYieldCurveTimeSteps()
     {
-        return (uint16_t **)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 12 * sizeof(uint16_t) + sizeof(real *))];
+        return (uint16_t **)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *))];
     }
+       
+    // 2-byte size variables, aligned to 2-byte (16-bit) border
+
+    __device__ inline volatile uint16_t* getValuationFlags()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile uint16_t* getJmaxs()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile uint16_t* getNs()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getTermUnits()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 2 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getLastUsedYCTermIndices()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 3 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getLastUsedCIndices()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 4 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getLastCSteps()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 5 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getRemainingCashflows()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 6 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getYieldCurveTermCounts()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 7 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getLastExerciseSteps()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 8 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getFirstExerciseSteps()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 9 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile uint16_t* getExerciseStepFrequencies()
+    {
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 10 * sizeof(uint16_t))];
+    }
+
+    // 1-byte size variables, aligned to 1 byte (8-bit) border
 
     __device__ inline volatile OptionTypeE* getOptionTypes() // type
     {
-        return (OptionTypeE *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + 12 * sizeof(uint16_t) + sizeof(real *) + sizeof(uint16_t *))];
+        return (OptionTypeE *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 11 * sizeof(uint16_t) + sizeof(uint16_t *))];
     }
 
     __device__ inline real getPs(const int index, const int branch)
@@ -279,7 +280,6 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
 
         const auto ycIndex = valuations.YieldCurveIndices[idx];
         const auto firstYCTermIndex = valuations.YieldCurveTermIndices[ycIndex];
-        args.getFirstYCTermIndices()[threadIdx.x] = firstYCTermIndex;
         args.getYieldCurveTermCounts()[threadIdx.x] = valuations.YieldCurveTerms[ycIndex];
         args.getFirstYieldCurveRates()[threadIdx.x] = &valuations.YieldCurveRates[firstYCTermIndex];
         args.getFirstYieldCurveTimeSteps()[threadIdx.x] = &valuations.YieldCurveTimeSteps[firstYCTermIndex];
@@ -291,12 +291,11 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
         args.getLastCSteps()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
         args.getRemainingCashflows()[threadIdx.x] = valuations.Cashflows[idx];
 #ifdef DEV
-        printf("idx %d threadIdx.x %d blockIdx.x %d\n", idx);
         if (idx == PRINT_IDX) printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %d %.18f %d %d %d %.18f %d %d\n", idx, threadIdx.x, blockIdx.x,
             args.getTermUnits()[threadIdx.x], args.getDts()[threadIdx.x], args.getNs()[threadIdx.x], args.getStrikes()[threadIdx.x], args.getOptionTypes()[threadIdx.x],
             args.getMs()[threadIdx.x], args.getMdrdts()[threadIdx.x], args.getJmaxs()[threadIdx.x], args.getExpmOasdts()[threadIdx.x],
             args.getLastExerciseSteps()[threadIdx.x], args.getFirstExerciseSteps()[threadIdx.x], args.getExerciseStepFrequencies()[threadIdx.x],
-            args.getFirstYCTermIndices()[threadIdx.x], args.getYieldCurveTermCounts()[threadIdx.x], *args.getFirstYieldCurveRates()[threadIdx.x], *args.getFirstYieldCurveTimeSteps()[threadIdx.x], args.getLastUsedYCTermIndices()[threadIdx.x],
+            args.getYieldCurveTermCounts()[threadIdx.x], *args.getFirstYieldCurveRates()[threadIdx.x], *args.getFirstYieldCurveTimeSteps()[threadIdx.x], args.getLastUsedYCTermIndices()[threadIdx.x],
             args.getLastUsedCIndices()[threadIdx.x], args.getLastCashflows()[threadIdx.x], args.getLastCSteps()[threadIdx.x], args.getRemainingCashflows()[threadIdx.x]);
 #endif
     }
@@ -474,11 +473,11 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
 
                 }
                 else {
-                    Q = ((j == -jhigh + 2) ? args.getPs(threadIdx.x - 2, 1) * args.getQs()[threadIdx.x - 2] : zero) +
+                    Q = (j == -jhigh + 2 ? args.getPs(threadIdx.x - 2, 1) * args.getQs()[threadIdx.x - 2] : zero) +
                         args.getPs(threadIdx.x - 1, 1) * expd +
                         args.getPs(threadIdx.x, 2) * expm +
                         args.getPs(threadIdx.x + 1, 3) * expu +
-                        ((j == jhigh - 2) ? args.getPs(threadIdx.x + 2, 3) * args.getQs()[threadIdx.x + 2] : zero);
+                        (j == jhigh - 2 ? args.getPs(threadIdx.x + 2, 3) * args.getQs()[threadIdx.x + 2] : zero);
                 }
             }
         }
@@ -635,7 +634,7 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
 
             // calculate accrued interest from cashflow
             ai = isExerciseStep && args.getLastCSteps()[valLIdx] != 0 && args.getRemainingCashflows()[valLIdx] > 0
-                ? computeAccruedInterest(0, i, args.getLastCSteps()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIndices()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIndices()[valLIdx]])
+                ? computeAccruedInterest(i, args.getLastCSteps()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIndices()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIndices()[valLIdx]])
                 : zero;
 
             // after obtaining the result from (i+1) nodes, set the call for ith node
@@ -691,8 +690,9 @@ protected:
     void runKernel(CudaValuations &valuations, std::vector<real> &results, thrust::device_vector<int32_t> &inds,
         KernelArgsValuesT &values, const int totalAlphasCount, const int maxValuationsBlock)
     {
-        const int sharedMemorySize = BlockSize * (5 * sizeof(real) + sizeof(uint16_t))
-            + maxValuationsBlock * (8 * sizeof(real) + 12 * sizeof(uint16_t) + sizeof(real *) + sizeof(uint16_t *));
+        const int sharedMemorySize = 
+            BlockSize * (5 * sizeof(real) + sizeof(uint16_t))
+            + maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + 11 * sizeof(uint16_t) + sizeof(OptionTypeE));
         thrust::device_vector<real> alphas(totalAlphasCount);
         thrust::device_vector<real> result(valuations.ValuationCount);
 

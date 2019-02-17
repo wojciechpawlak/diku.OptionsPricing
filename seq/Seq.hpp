@@ -25,6 +25,11 @@ struct jvalue
  **/
 real computeSingleOption(const ValuationConstants &c, const Valuations &valuations, const int idx)
 {
+    auto Qs = new real[c.width]();     // Qs[j]: j in -jmax..jmax
+    auto QsCopy = new real[c.width](); // QsCopy[j]
+    auto alphas = new real[c.n + 1](); // alphas[i]
+    auto alpha = 0.0;
+    volatile uint16_t lastUsedYCTermIdx = 0;
 #ifdef DEV
     auto a = valuations.MeanReversionRates.at(idx);
     auto sigma = valuations.Volatilities.at(idx);
@@ -33,7 +38,8 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         idx, c.n, a, sigma, tmp, exp(tmp), sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a), c.dr, c.dt, c.firstYCTermIdx, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency);
     if (idx == PRINT_IDX) printf("%d: %.18f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
 #endif
-    // Precompute probabilities and rates for all js.
+
+    // Precompute exponent of rates for each node on the width on the tree (constant over forward propagation)
     auto jvalues = new jvalue[c.width];
 
     jvalue &valmin = jvalues[0];
@@ -57,7 +63,6 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, jind, val.rate, val.pu, val.pm, val.pd);
 #endif
     }
-
     jvalue &valmax = jvalues[c.width - 1];
     valmax.rate = exp(c.mdrdt*c.jmax);
     valmax.pu = PU_C(c.jmax, c.M);
@@ -68,13 +73,8 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
 #endif
 
     // Forward propagation
-    auto Qs = new real[c.width]();     // Qs[j]: j in -jmax..jmax
-    auto QsCopy = new real[c.width](); // QsCopy[j]
     Qs[c.jmax] = one;                  // Qs[0] = 1$
-
-    auto alphas = new real[c.n + 1](); // alphas[i]
-    volatile uint16_t lastUsedYCTermIdx = 0;
-    auto alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx); // initial dt-period interest rate
+    alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx); // initial dt-period interest rate
     alphas[0] = exp(-alpha * c.dt);
 
 #ifndef FORWARD_GATHER
@@ -149,9 +149,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         }
 #endif
     }
-#endif
-
-#ifdef FORWARD_GATHER
+#else
 #ifdef DEV1
     if (idx == PRINT_IDX)
         printf("%d %d: %.18f %.18f %.18f %d\n", idx, 0, 1.0, alpha, alphas[0], lastUsedYCTermIdx);
@@ -335,7 +333,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         }
 
         // calculate accrued interest from last cashflow
-        const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(c.termStepCount, i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
+        const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV2
         if (idx == PRINT_IDX && i == lastCStep - 1)
             printf("%d %d: ai %f %d %d %d %f %d %d %f\n", idx, i, ai, c.termStepCount, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
@@ -354,25 +352,25 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
             {
                 // Top edge branching
                 res = (jval.pu * price[jind] +
-                       jval.pm * price[jind - 1] +
-                       jval.pd * price[jind - 2]) *
-                      discFactor;
+                    jval.pm * price[jind - 1] +
+                    jval.pd * price[jind - 2]) *
+                    discFactor;
             }
             else if (j == -c.jmax)
             {
                 // Bottom edge branching
                 res = (jval.pu * price[jind + 2] +
-                       jval.pm * price[jind + 1] +
-                       jval.pd * price[jind]) *
-                      discFactor;
+                    jval.pm * price[jind + 1] +
+                    jval.pd * price[jind]) *
+                    discFactor;
             }
             else
             {
                 // Standard branching
                 res = (jval.pu * price[jind + 1] +
-                       jval.pm * price[jind] +
-                       jval.pd * price[jind - 1]) *
-                      discFactor;
+                    jval.pm * price[jind] +
+                    jval.pd * price[jind - 1]) *
+                    discFactor;
             }
 
             // after obtaining the result from (i+1) nodes, set the call for ith node

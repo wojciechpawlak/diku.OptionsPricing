@@ -151,10 +151,9 @@ DEVICE inline real computeJValue(const int j, const int jmax, const real M, cons
     return 0;
 }
 
-DEVICE inline real computeAccruedInterest(const uint16_t termStepCounts, const int i, const int prevCouponIdx, const int nextCouponIdx, const real nextCoupon)
+DEVICE inline real computeAccruedInterest(const int i, const int prevCouponIdx, const int nextCouponIdx, const real nextCoupon)
 {
     real couponsTimeDiff = nextCouponIdx - prevCouponIdx;
-    couponsTimeDiff = couponsTimeDiff <= 0.0 ? termStepCounts : couponsTimeDiff;
     real eventsTimeDiff = nextCouponIdx - i;
     eventsTimeDiff = eventsTimeDiff <= 0.0 ? 0.0 : eventsTimeDiff;
     return (couponsTimeDiff - (real)eventsTimeDiff) / couponsTimeDiff * nextCoupon;

@@ -108,6 +108,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     auto lastCashflow = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
     auto cashflowsRemaining = valuations.Cashflows[idx];
     auto lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+    auto alpha = 0.0;
 #ifdef DEV
     if (idx == PRINT_IDX) printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %d %.18f %d %d %d %.18f %d %d\n", idx, threadIdx.x, blockIdx.x,
         c.termUnit, c.dt, c.n, c.X, c.type, c.M, c.mdrdt, c.jmax, c.expmOasdt, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency,
@@ -115,6 +116,10 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         lastUsedCIdx, lastCashflow, lastCStep, cashflowsRemaining);
 #endif
 #ifdef DEV
+    // problem with exponent function on single precision
+    // exp function on GPU yields slightly different result than exp on CPU
+    // the difference propagates to all the other computations 
+    // as all subsequent computations depend on this calculation
     const auto a = valuations.MeanReversionRates[idx];
     const auto sigma = valuations.Volatilities[idx];
     const double tmp = -two * a * c.dt;
@@ -154,7 +159,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 
     // Forward propagation
     args.setQAt(c.jmax, one); // Initialize the root of the tree
-    auto alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
+    alpha = interpolateRateAtTimeStep(c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
     args.setAlphaAt(0, exp(-alpha * c.dt));
 
 #ifdef DEV1
@@ -329,7 +334,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         }
 
         // calculate accrued interest from last cashflow
-        const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(c.termStepCount, i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
+        const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV2
         if (idx == PRINT_IDX && isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0)
             printf("%d %d: ai %f %d %d %f %d %d %f\n", idx, i, ai, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],

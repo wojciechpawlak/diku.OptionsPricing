@@ -20,7 +20,7 @@ enum class SortType : char
     NONE = '-'
 };
 
-enum class OptionTypeE : int8_t
+enum class OptionTypeE : char
 {
     CALL_VANILLA = 0,
     PUT_VANILLA = 1
