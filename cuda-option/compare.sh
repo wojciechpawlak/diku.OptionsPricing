@@ -12,7 +12,7 @@ reg=""
 device=0
 # sorts="- w W h H"
 sorts="-"
-block_sizes="64 128"
+# block_sizes="64 128"
 block_sizes="128"
 versions="1 2 3 4"
 
@@ -33,7 +33,7 @@ exedoublereg=$exedouble"-reg32"
 exes=($exefloat $exefloatreg $exedouble $exedoublereg)
 exes_names=("float,-" "float,32" "double,-" "double,32")
 # exes_to_run=(0 1 2 3)
-exes_to_run=(0 2)
+exes_to_run=(2)
 
 compile() {
     echo "Compiling float version..."

@@ -7,11 +7,11 @@
 # program options
 rep=3
 device=0
-sorts="-s - -s w -s W -s h -s H"
+sorts="-s - -s h -s H"
 # sorts="w W h H"
 # block_sizes="32 64 128 256 512 1024"
 # block_sizes="512"
-block_sizes="-b 512 -b 1024"
+block_sizes="-b 512"
 versions="-v 1 -v 2 -v 3"
 # versions="3"
 
