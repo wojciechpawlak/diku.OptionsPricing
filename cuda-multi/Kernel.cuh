@@ -190,7 +190,7 @@ public:
 
     __device__ inline volatile OptionTypeE* getOptionTypes() // type
     {
-        return (OptionTypeE *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 10 * sizeof(uint16_t) + sizeof(uint16_t *))];
+        return (OptionTypeE *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 10 * sizeof(uint16_t))];
     }
 
     __device__ inline real getPs(const int index, const int branch)
