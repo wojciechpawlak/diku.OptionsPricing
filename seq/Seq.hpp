@@ -5,6 +5,7 @@
 #include "../common/Domain.hpp"
 
 #define FORWARD_GATHER
+#define PRINT_IDX 5
 
 using namespace trinom;
 
@@ -30,6 +31,22 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     auto alphas = new real[c.n + 1](); // alphas[i]
     auto alpha = 0.0;
     volatile uint16_t lastUsedYCTermIdx = 0;
+    auto price = Qs; // Reuse in backward propagation
+    auto priceCopy = QsCopy; // Reuse in backward propagation
+    auto lastUsedCIdx = valuations.CashflowIndices[idx] + (int)valuations.Cashflows[idx] - 1; // always at lest one cashflow
+    auto lastCashflow = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
+    auto cashflowsRemaining = valuations.Cashflows[idx];
+    auto lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+#ifdef DEV
+    const auto ycIndex = valuations.YieldCurveIndices[idx];
+    const auto firstYCTermIndex = valuations.YieldCurveTermIndices[ycIndex];
+    if (idx == PRINT_IDX)
+        printf("%d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %.18f %d %d %d %.18f %d %d %d %d %.18f %d\n", idx,
+        c.termUnit, c.dt, c.n, c.X, c.type, c.M, c.mdrdt, c.jmax, c.expmOasdt, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency,
+        c.yieldCurveTermCount, *c.firstYieldCurveRate, *c.firstYieldCurveTimeStep, lastUsedYCTermIdx,
+        lastUsedCIdx, lastCashflow, lastCStep, cashflowsRemaining,
+        ycIndex, firstYCTermIndex, valuations.YieldCurveRates[firstYCTermIndex], valuations.YieldCurveTimeSteps[firstYCTermIndex]);
+#endif
 #ifdef DEV_EXTRA
     auto a = valuations.MeanReversionRates.at(idx);
     auto sigma = valuations.Volatilities.at(idx);
@@ -47,7 +64,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     valmin.pu = PU_B(-c.jmax, c.M);
     valmin.pm = PM_B(-c.jmax, c.M);
     valmin.pd = PD_B(-c.jmax, c.M);
-#ifdef DEV
+#ifdef DEV0
     if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, 0, valmin.rate, valmin.pu, valmin.pm, valmin.pd);
 #endif
 
@@ -59,7 +76,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         val.pu = PU_A(j, c.M);
         val.pm = PM_A(j, c.M);
         val.pd = PD_A(j, c.M);
-#ifdef DEV
+#ifdef DEV0
         if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, jind, val.rate, val.pu, val.pm, val.pd);
 #endif
     }
@@ -68,7 +85,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     valmax.pu = PU_C(c.jmax, c.M);
     valmax.pm = PM_C(c.jmax, c.M);
     valmax.pd = PD_C(c.jmax, c.M);
-#ifdef DEV
+#ifdef DEV0
     if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, c.width - 1, valmax.rate, valmax.pu, valmax.pm, valmax.pd);
 #endif
 
@@ -155,7 +172,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         printf("%d %d: %.18f %.18f %.18f %d\n", idx, 0, 1.0, alpha, alphas[0], lastUsedYCTermIdx);
 #endif
 #ifdef DEV1
-    if (idx == PRINT_IDX && 0 >= PRINT_FIRST_ITER)
+    if (idx == PRINT_IDX && 0 >= PRINT_FIRST_ITER && 0 <= PRINT_LAST_ITER)
     {
         printf("%d %d: ", idx, 0);
         for (auto k = 0; k < c.width; ++k)
@@ -259,9 +276,9 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
             // by summing up Qs from the next time step
             QsCopy[jind] = Q;
             aggregatedQs += Q * jval.rate;
-#ifdef DEV1
-            if (idx == PRINT_IDX && i == 1) printf("%d %d: %.18f %.18f %.18f\n", idx, jind, aggregatedQs, Q, jval.rate);
-#endif
+//#ifdef DEV1
+//            if (idx == PRINT_IDX && i == 1) printf("%d %d: %.18f %.18f %.18f\n", idx, jind, aggregatedQs, Q, jval.rate);
+//#endif
         }
 
         alpha = computeAlpha(aggregatedQs, i - 1, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
@@ -291,17 +308,18 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
 #endif
 
     // Backward propagation
-    auto price = Qs;
-    auto priceCopy = QsCopy;
 
-    auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
-    auto cashflowsRemaining = valuations.Cashflows[idx];
 #ifdef DEV2
     if (idx == PRINT_IDX) printf("%d %d: %d %d %f %f %d\n", idx, c.n, lastUsedCIdx, cashflowsRemaining, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
 #endif
-    std::fill_n(price, c.width, valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx]); // initialize to par/face value: last repayment + last coupon
+    std::fill_n(price, c.width, lastCashflow); // initialize to par/face value: last repayment + last coupon
     cashflowsRemaining--;
-    auto lastCStep = valuations.CashflowSteps[lastUsedCIdx] <= c.n && cashflowsRemaining > 0 ? valuations.CashflowSteps[--lastUsedCIdx] : valuations.CashflowSteps[lastUsedCIdx];
+    //lastCStep = lastUsedCIdx > 0 && valuations.CashflowSteps[lastUsedCIdx] <= c.n && cashflowsRemaining > 0 ? valuations.CashflowSteps[--lastUsedCIdx] : valuations.CashflowSteps[lastUsedCIdx];
+    if (lastUsedCIdx > 0 && lastCStep <= c.n && cashflowsRemaining > 0)
+    {
+        lastUsedCIdx--;
+        lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+    }
 
     for (auto i = c.n - 1; i >= 0; --i)
     {
@@ -316,26 +334,30 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         // add coupon and repayments  if crossed a time step with a cashflow
         if (i == lastCStep - 1 && cashflowsRemaining > 0)
         {
+            lastCashflow = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
 #ifdef DEV2
             if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax]);
 #endif
             for (auto j = -jhigh; j <= jhigh; ++j)
             {
                 const auto jind = j + c.jmax;
-                price[jind] += valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
+                price[jind] += lastCashflow;
             }
 #ifdef DEV2
-            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax]);
+            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax], lastCashflow);
 #endif
-            lastUsedCIdx--;
-            lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+            if (lastUsedCIdx > 0 && lastCStep <= c.n && cashflowsRemaining > 0)
+            {
+                lastUsedCIdx--;
+                lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+            }
             cashflowsRemaining--;
         }
 
         // calculate accrued interest from last cashflow
         const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV2
-        if (idx == PRINT_IDX && i == lastCStep - 1)
+        if (idx == PRINT_IDX && isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0)
             printf("%d %d: ai %f %d %d %f %d %d %f\n", idx, i, ai, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
                 valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1] - i,
                 (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep));

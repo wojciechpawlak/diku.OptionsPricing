@@ -4,9 +4,10 @@
 #include "CudaInterop.h"
 
 //#define DEV_LIMIT
-//#define DEV
+#define DEV
+//#define DEV0
 //#define DEV1
-//#define DEV2
+#define DEV2
 //#define DEV_EXTRA
 #define PRINT_IDX 0
 #define PRINT_FIRST_ITER -1

@@ -251,19 +251,20 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
     // Get the valuation and compute its constants
     if (idx < firstValGIdxBlockNext) // Do not fetch valuations from next block
     {
-        args.getValuationInds()[threadIdx.x] = valuations.Widths[idx];
+        args.getValuationInds()[threadIdx.x] = valuations.Widths[idx]; // Widths are also sorted
+        const auto sortedIdx = valuations.ValuationIndices[0] != -1 ? valuations.ValuationIndices[idx] : idx;
 
-        const auto termUnits = valuations.TermUnits[idx];
+        const auto termUnits = valuations.TermUnits[sortedIdx];
         args.getTermUnits()[threadIdx.x] = termUnits;
         const auto termUnitsInYearCount = (int)ceil((real)year / termUnits);
-        const auto termStepCount = valuations.TermSteps[idx];
+        const auto termStepCount = valuations.TermSteps[sortedIdx];
         const auto dt = termUnitsInYearCount / (real)termStepCount;
         args.getDts()[threadIdx.x] = dt;
-        args.getNs()[threadIdx.x] = termStepCount * termUnitsInYearCount * valuations.Maturities[idx];
-        args.getStrikes()[threadIdx.x] = valuations.StrikePrices[idx];
-        args.getOptionTypes()[threadIdx.x] = valuations.OptionTypes[idx];
-        const auto a = valuations.MeanReversionRates[idx];
-        const auto sigma = valuations.Volatilities[idx];
+        args.getNs()[threadIdx.x] = termStepCount * termUnitsInYearCount * valuations.Maturities[sortedIdx];
+        args.getStrikes()[threadIdx.x] = valuations.StrikePrices[sortedIdx];
+        args.getOptionTypes()[threadIdx.x] = valuations.OptionTypes[sortedIdx];
+        const auto a = valuations.MeanReversionRates[sortedIdx];
+        const auto sigma = valuations.Volatilities[sortedIdx];
         const auto V = sigma * sigma * (one - exp(-two * a * dt)) / (two * a);
         const auto dr = sqrt(three * V);
         args.getMs()[threadIdx.x] = exp(-a * dt) - one;
@@ -274,33 +275,34 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
 
         args.getMdrdts()[threadIdx.x] = -dr * dt;
         args.getJmaxs()[threadIdx.x] = (int)(minus184 / args.getMs()[threadIdx.x]) + 1;
-        args.getExpmOasdts()[threadIdx.x] = exp(-(valuations.Spreads[idx] / hundred)*dt);
+        args.getExpmOasdts()[threadIdx.x] = exp(-(valuations.Spreads[sortedIdx] / hundred)*dt);
 
-        args.getLastExerciseSteps()[threadIdx.x] = valuations.LastExerciseSteps[idx];
-        args.getFirstExerciseSteps()[threadIdx.x] = valuations.FirstExerciseSteps[idx];
-        args.getExerciseStepFrequencies()[threadIdx.x] = valuations.ExerciseStepFrequencies[idx];
+        args.getLastExerciseSteps()[threadIdx.x] = valuations.LastExerciseSteps[sortedIdx];
+        args.getFirstExerciseSteps()[threadIdx.x] = valuations.FirstExerciseSteps[sortedIdx];
+        args.getExerciseStepFrequencies()[threadIdx.x] = valuations.ExerciseStepFrequencies[sortedIdx];
 
-        const auto ycIndex = valuations.YieldCurveIndices[idx];
+        const auto ycIndex = valuations.YieldCurveIndices[sortedIdx];
         const auto firstYCTermIndex = valuations.YieldCurveTermIndices[ycIndex];
         args.getYieldCurveTermCounts()[threadIdx.x] = valuations.YieldCurveTerms[ycIndex];
         args.getFirstYieldCurveRates()[threadIdx.x] = &valuations.YieldCurveRates[firstYCTermIndex];
         args.getFirstYieldCurveTimeSteps()[threadIdx.x] = &valuations.YieldCurveTimeSteps[firstYCTermIndex];
         args.getLastUsedYCTermIndices()[threadIdx.x] = 0;
 
-        const auto lastUsedCIdx = valuations.CashflowIndices[idx] + (int)valuations.Cashflows[idx] - 1;
+        const auto lastUsedCIdx = valuations.CashflowIndices[sortedIdx] + (int)valuations.Cashflows[sortedIdx] - 1;
         args.getLastUsedCIndices()[threadIdx.x] = lastUsedCIdx;
         args.getLastCashflows()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
         args.getLastCSteps()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
-        args.getRemainingCashflows()[threadIdx.x] = valuations.Cashflows[idx];
+        args.getRemainingCashflows()[threadIdx.x] = valuations.Cashflows[sortedIdx];
 #ifdef DEV
-        if (idx == PRINT_IDX) printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %.18f %d %d %d %.18f %d %d %d %d %.18f %d %d %d\n", idx, threadIdx.x, blockIdx.x,
+        if (idx == PRINT_IDX)
+            printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %.18f %d %d %d %.18f %d %d %d %d %.18f %d %d %d %d %d\n", idx, threadIdx.x, blockIdx.x,
             args.getTermUnits()[threadIdx.x], args.getDts()[threadIdx.x], args.getNs()[threadIdx.x], args.getStrikes()[threadIdx.x], args.getOptionTypes()[threadIdx.x],
             args.getMs()[threadIdx.x], args.getMdrdts()[threadIdx.x], args.getJmaxs()[threadIdx.x], args.getExpmOasdts()[threadIdx.x],
             args.getLastExerciseSteps()[threadIdx.x], args.getFirstExerciseSteps()[threadIdx.x], args.getExerciseStepFrequencies()[threadIdx.x],
             args.getYieldCurveTermCounts()[threadIdx.x], *args.getFirstYieldCurveRates()[threadIdx.x], *args.getFirstYieldCurveTimeSteps()[threadIdx.x], args.getLastUsedYCTermIndices()[threadIdx.x],
             args.getLastUsedCIndices()[threadIdx.x], args.getLastCashflows()[threadIdx.x], args.getLastCSteps()[threadIdx.x], args.getRemainingCashflows()[threadIdx.x],
             ycIndex, firstYCTermIndex, valuations.YieldCurveRates[firstYCTermIndex], valuations.YieldCurveTimeSteps[firstYCTermIndex],
-            valuations.CashflowIndices[idx], valuations.Cashflows[idx]);
+            valuations.CashflowIndices[sortedIdx], valuations.Cashflows[sortedIdx], sortedIdx, args.getValuationInds()[threadIdx.x]);
 #endif
     }
     else
@@ -375,7 +377,7 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
         {
             args.getPus()[threadIdx.x] = PU_A(j, args.getMs()[valLIdx]); args.getPms()[threadIdx.x] = PM_A(j, args.getMs()[valLIdx]); args.getPds()[threadIdx.x] = PD_A(j, args.getMs()[valLIdx]);
         }
-#ifdef DEV
+#ifdef DEV0
         if (valGIdx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", valGIdx, threadIdx.x, /*blockIdx.x, threadIdx.x, j, args.getJmaxs()[valLIdx],*/ args.getRates()[threadIdx.x], args.getPs(threadIdx.x, 1), args.getPs(threadIdx.x, 2), args.getPs(threadIdx.x, 3));
 #endif
     }
@@ -577,8 +579,8 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
 #ifdef DEV2
             if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
                 printf("%d %d: %.18f %d %d %d %d\n",
-                    valGIdx, i, args.getAlphaAt(i, valLIdx), isExerciseStep, args.getLastCSteps()[valLIdx], (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[threadIdx.x],
-                    (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[threadIdx.x] == 0);
+                    valGIdx, i, args.getAlphaAt(i, valLIdx), isExerciseStep, args.getLastCSteps()[valLIdx], (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[valLIdx],
+                    (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[valLIdx] == 0);
 #endif
             if (i == args.getLastCSteps()[valLIdx] - 1 && args.getRemainingCashflows()[valLIdx] > 0)
             {

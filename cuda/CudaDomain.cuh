@@ -49,6 +49,7 @@ struct KernelValuations
     int32_t *Heights;
     int32_t *CashflowIndices;
     int32_t *YieldCurveTermIndices;
+    int32_t *ValuationIndices;
 };
 
 struct compute_width_height
@@ -245,24 +246,8 @@ public:
             // Create indices
             ValuationIndices = thrust::device_vector<int32_t>(ValuationCount);
             thrust::sequence(ValuationIndices.begin(), ValuationIndices.end());
-            DeviceMemory += vectorsizeof(ValuationIndices);
 
-            auto optionBegin = thrust::make_zip_iterator(thrust::make_tuple(
-                //TermUnits.begin(),
-                //TermSteps.begin(),
-                MeanReversionRates.begin(),
-                Volatilities.begin(),
-                Cashflows.begin(),
-                //Spreads.begin(),
-                //OptionTypes.begin(),
-                StrikePrices.begin(),
-                FirstExerciseSteps.begin(),
-                LastExerciseSteps.begin(),
-                ExerciseStepFrequencies.begin(),
-                YieldCurveIndices.begin(),
-                CashflowIndices.begin(),
-                ValuationIndices.begin()
-            ));
+            auto valuationsBegin = thrust::make_zip_iterator(thrust::make_tuple(ValuationIndices.begin()));
     
             auto keysBegin = (sort == SortType::WIDTH_ASC || sort == SortType::WIDTH_DESC) 
                 ? thrust::make_zip_iterator(thrust::make_tuple(Widths.begin(), Heights.begin()))
@@ -278,17 +263,24 @@ public:
                     if (isTest) std::cout << "Ascending sort, width first, height second" << std::endl;
                 case SortType::HEIGHT_ASC:
                     if (isTest && sort == SortType::HEIGHT_ASC) std::cout << "Ascending sort, height first, width second" << std::endl;
-                    thrust::sort_by_key(keysBegin, keysEnd, optionBegin, sort_tuple_asc());
+                    thrust::sort_by_key(keysBegin, keysEnd, valuationsBegin, sort_tuple_asc());
                     break;
                 case SortType::WIDTH_DESC:
                     if (isTest) std::cout << "Descending sort, width first, height second" << std::endl;
                 case SortType::HEIGHT_DESC:
                     if (isTest && sort == SortType::HEIGHT_DESC) std::cout << "Descending sort, height first, width second" << std::endl;
-                    thrust::sort_by_key(keysBegin, keysEnd, optionBegin, sort_tuple_desc());
+                    thrust::sort_by_key(keysBegin, keysEnd, valuationsBegin, sort_tuple_desc());
                     break;
             }
             cudaDeviceSynchronize();
         }
+        else
+        {
+            ValuationIndices = thrust::device_vector<int32_t>(1);
+            ValuationIndices[0] = -1;
+        }
+        KernelValuations.ValuationIndices = thrust::raw_pointer_cast(ValuationIndices.data());
+        DeviceMemory += vectorsizeof(ValuationIndices);
     }
 
     void sortResult(thrust::device_vector<real> &deviceResults)
@@ -315,17 +307,18 @@ bool operator <(const CudaRuntime& x, const CudaRuntime& y) {
 
 __device__ void computeConstants(ValuationConstants &c, const KernelValuations &valuations, const int idx)
 {
-    c.termUnit = valuations.TermUnits[idx];
-    const auto T = valuations.Maturities[idx];
+    const auto sortedIdx = valuations.ValuationIndices[0] != -1 ? valuations.ValuationIndices[idx] : idx;
+    c.termUnit = valuations.TermUnits[sortedIdx];
+    const auto T = valuations.Maturities[sortedIdx];
     const auto termUnitsInYearCount = (int)ceil((real)year / c.termUnit);
-    const auto termStepCount = valuations.TermSteps[idx];
+    const auto termStepCount = valuations.TermSteps[sortedIdx];
     c.n = (int)ceil(termStepCount * termUnitsInYearCount * T);
     c.dt = termUnitsInYearCount / (real)termStepCount; // [years]
-    c.type = valuations.OptionTypes[idx];
-    c.X = valuations.StrikePrices[idx];
+    c.type = valuations.OptionTypes[sortedIdx];
+    c.X = valuations.StrikePrices[sortedIdx];
 
-    const auto a = valuations.MeanReversionRates[idx];
-    const auto sigma = valuations.Volatilities[idx];
+    const auto a = valuations.MeanReversionRates[sortedIdx];
+    const auto sigma = valuations.Volatilities[sortedIdx];
     const auto V = sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a);
     const auto dr = sqrt(three * V);
     c.M = exp(-a * c.dt) - one;
@@ -336,19 +329,19 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
 
     c.mdrdt = -dr * c.dt;
     c.jmax = (int)(minus184 / c.M) + 1;
-    c.expmOasdt = exp(-(valuations.Spreads[idx] / hundred)*c.dt);
+    c.expmOasdt = exp(-(valuations.Spreads[sortedIdx] / hundred)*c.dt);
 
     c.width = 2 * c.jmax + 1;
 
-    c.lastExerciseStep = valuations.LastExerciseSteps[idx];
-    c.firstExerciseStep = valuations.FirstExerciseSteps[idx];
-    c.exerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
+    c.lastExerciseStep = valuations.LastExerciseSteps[sortedIdx];
+    c.firstExerciseStep = valuations.FirstExerciseSteps[sortedIdx];
+    c.exerciseStepFrequency = valuations.ExerciseStepFrequencies[sortedIdx];
 
-    const auto ycIndex = valuations.YieldCurveIndices[idx];
+    const auto ycIndex = valuations.YieldCurveIndices[sortedIdx];
     const auto firstYCTermIdx = valuations.YieldCurveTermIndices[ycIndex];
     c.firstYieldCurveRate = &valuations.YieldCurveRates[firstYCTermIdx];
     c.firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[firstYCTermIdx];
-    c.yieldCurveTermCount = valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]];
+    c.yieldCurveTermCount = valuations.YieldCurveTerms[ycIndex];
 }
 
 }

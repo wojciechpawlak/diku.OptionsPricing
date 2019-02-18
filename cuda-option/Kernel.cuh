@@ -104,19 +104,21 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     computeConstants(c, valuations, idx);
     // Helper variables
     volatile uint16_t lastUsedYCTermIdx = 0;
-    auto lastUsedCIdx = valuations.CashflowIndices[idx] + (int)valuations.Cashflows[idx] - 1;
+    const auto sortedIdx = valuations.ValuationIndices[0] != -1 ? valuations.ValuationIndices[idx] : idx;
+    auto lastUsedCIdx = valuations.CashflowIndices[sortedIdx] + (int)valuations.Cashflows[sortedIdx] - 1;
     auto lastCashflow = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
-    auto cashflowsRemaining = valuations.Cashflows[idx];
+    auto cashflowsRemaining = valuations.Cashflows[sortedIdx];
     auto lastCStep = valuations.CashflowSteps[lastUsedCIdx];
     auto alpha = 0.0;
 #ifdef DEV
-    const auto ycIndex = valuations.YieldCurveIndices[idx];
+    const auto ycIndex = valuations.YieldCurveIndices[sortedIdx];
     const auto firstYCTermIndex = valuations.YieldCurveTermIndices[ycIndex];
-    if (idx == PRINT_IDX) printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %.18f %d %d %d %.18f %d %d %d %d %.18f %d\n", idx, threadIdx.x, blockIdx.x,
+    if (idx == PRINT_IDX)
+        printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %.18f %d %d %d %.18f %d %d %d %d %.18f %d %d\n", idx, threadIdx.x, blockIdx.x,
         c.termUnit, c.dt, c.n, c.X, c.type, c.M, c.mdrdt, c.jmax, c.expmOasdt, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency,
         c.yieldCurveTermCount, *c.firstYieldCurveRate, *c.firstYieldCurveTimeStep, lastUsedYCTermIdx,
         lastUsedCIdx, lastCashflow, lastCStep, cashflowsRemaining,
-        ycIndex, firstYCTermIndex, valuations.YieldCurveRates[firstYCTermIndex], valuations.YieldCurveTimeSteps[firstYCTermIndex]);
+        ycIndex, firstYCTermIndex, valuations.YieldCurveRates[firstYCTermIndex], valuations.YieldCurveTimeSteps[firstYCTermIndex], sortedIdx);
 #endif
 #ifdef DEV_EXTRA
     // problem with exponent function on single precision
@@ -144,19 +146,19 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 
     // Precompute probabilities for each node on the width on the tree (constant over forward and backward propagation)
     args.setPAt(0, 1, PU_B(-c.jmax, c.M)); args.setPAt(0, 2, PM_B(-c.jmax, c.M)); args.setPAt(0, 3, PD_B(-c.jmax, c.M));
-#ifdef DEV
+#ifdef DEV0
     if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, 0, args.getRateAt(0), args.getPAt(0, 1), args.getPAt(0, 2), args.getPAt(0, 3));
 #endif
     for (auto j = -c.jmax + 1; j < c.jmax; ++j)
     {
         auto jind = j + c.jmax;
         args.setPAt(jind, 1, PU_A(j, c.M)); args.setPAt(jind, 2, PM_A(j, c.M)); args.setPAt(jind, 3, PD_A(j, c.M));
-#ifdef DEV
+#ifdef DEV0
         if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, jind, args.getRateAt(jind), args.getPAt(jind, 1), args.getPAt(jind, 2), args.getPAt(jind, 3));
 #endif
     }
     args.setPAt(c.width - 1, 1, PU_C(c.jmax, c.M)); args.setPAt(c.width - 1, 2, PM_C(c.jmax, c.M)); args.setPAt(c.width - 1, 3, PD_C(c.jmax, c.M));
-#ifdef DEV
+#ifdef DEV0
     if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, c.width - 1, args.getRateAt(c.width - 1), args.getPAt(c.width - 1, 1), args.getPAt(c.width - 1, 2), args.getPAt(c.width - 1, 3));
 #endif
 
@@ -304,7 +306,12 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 #endif
     args.fillQs(c.width, lastCashflow); // initialize to par/face value: last repayment + last coupon
     cashflowsRemaining--;
-    lastCStep = valuations.CashflowSteps[lastUsedCIdx] <= c.n && cashflowsRemaining > 0 ? valuations.CashflowSteps[--lastUsedCIdx] : valuations.CashflowSteps[lastUsedCIdx];
+    if (lastUsedCIdx > 0 && lastCStep <= c.n && cashflowsRemaining > 0)
+    {
+        lastUsedCIdx--;
+        lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+    }
+    
     for (auto i = c.n - 1; i >= 0; --i)
     {
         const auto jhigh = min(i, c.jmax);
@@ -331,8 +338,11 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 #ifdef DEV2
             if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, args.getQAt(c.jmax));
 #endif
-            lastUsedCIdx--;
-            lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+            if (lastUsedCIdx > 0 && lastCStep <= c.n && cashflowsRemaining > 0)
+            {
+                lastUsedCIdx--;
+                lastCStep = valuations.CashflowSteps[lastUsedCIdx];
+            }
             cashflowsRemaining--;
         }
 
