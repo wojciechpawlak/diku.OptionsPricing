@@ -42,89 +42,92 @@ public:
 
     // 8-byte size variables, aligned to 8-byte (64-bit) border
 
-    __device__ inline volatile real* getQs()
-    {
-        return (real *)&sh_mem;
-    }
-
-    __device__ inline volatile int32_t* getValuationInds()
-    {
-        return (int32_t *)&sh_mem;  // Sharing the same array with Qs!
-    }
-
-    __device__ inline volatile real* getRates()
-    {
-        return (real *)&sh_mem[blockDim.x * (sizeof(real))];
-    }
-
-    __device__ inline volatile real* getPus()
-    {
-        return (real *)&sh_mem[blockDim.x * (2 * sizeof(real))];
-    }
-
-    __device__ inline volatile real* getPms()
-    {
-        return (real *)&sh_mem[blockDim.x * (3 * sizeof(real))];
-    }
-
-    __device__ inline volatile real* getPds()
-    {
-        return (real *)&sh_mem[blockDim.x * (4 * sizeof(real))];
-    }
-
-    __device__ inline volatile real* getAlphas()
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real))];
-    }
-
-    __device__ inline volatile real* getQexps()
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * sizeof(real)];
-    }
-
-    __device__ inline volatile real* getDts()
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 2 * sizeof(real)];
-    }
-
-    __device__ inline volatile real* getMdrdts()
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 3 * sizeof(real)];
-    }
-
-    __device__ inline volatile real* getMs()
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 4 * sizeof(real)];
-    }
-
-    __device__ inline volatile real* getExpmOasdts()
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 5 * sizeof(real)];
-    }
-
-    __device__ inline volatile real* getLastCashflows()
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 6 * sizeof(real)];
-    }
-
-    __device__ inline volatile real* getStrikes() // X
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 7 * sizeof(real)];
-    }
-
-    __device__ inline volatile real* getAccruedInterests() // ai
-    {
-        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 8 * sizeof(real)];
-    }
-
     __device__ inline volatile real** getFirstYieldCurveRates()
     {
-        return (real **)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 9 * sizeof(real)];
+        return (real **)&sh_mem;
     }
 
     __device__ inline volatile uint16_t** getFirstYieldCurveTimeSteps()
     {
-        return (uint16_t **)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *))];
+        return (uint16_t **)&sh_mem[values.maxValuationsBlock * sizeof(real *)];
+    }
+
+    // 8-byte/4-byte size variables, aligned to 8-byte (64-bit)/4-byte (32-bit) border
+    // can be float (32-bit) or double (64-bit)
+
+    __device__ inline volatile real* getQs()
+    {
+        return (real *)&sh_mem[values.maxValuationsBlock * (sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile int32_t* getValuationInds()
+    {
+        return (int32_t *)&sh_mem[values.maxValuationsBlock * (sizeof(real *) + sizeof(uint16_t *))];  // Sharing the same array with Qs!
+    }
+
+    __device__ inline volatile real* getRates()
+    {
+        return (real *)&sh_mem[blockDim.x * (sizeof(real)) + values.maxValuationsBlock * (sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getPus()
+    {
+        return (real *)&sh_mem[blockDim.x * (2 * sizeof(real)) + values.maxValuationsBlock * (sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getPms()
+    {
+        return (real *)&sh_mem[blockDim.x * (3 * sizeof(real)) + values.maxValuationsBlock * (sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getPds()
+    {
+        return (real *)&sh_mem[blockDim.x * (4 * sizeof(real)) + values.maxValuationsBlock * (sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getAlphas()
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getQexps()
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getDts()
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (2 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getMdrdts()
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (3 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getMs()
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (4 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getExpmOasdts()
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (5 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getLastCashflows()
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (6 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getStrikes() // X
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (7 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+    }
+
+    __device__ inline volatile real* getAccruedInterests() // ai
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
     }
 
     // 4-byte size variables, aligned to 4 byte (32-bit) border
