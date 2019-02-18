@@ -255,7 +255,7 @@ mem_accesses = [2738946048,417930000,82836705060,12709138884,8083858200,12437434
 flops_OptT_double = [264422436545,22444351687]
 flops_OptsTB_double = [269739960791,23253035475]
 flops_OptT_single = [int(264422436545*0.7),int(22444351687*0.7)]
-flops_OptsTB_single = [int(269739960791*0.7),int(23253035475*0.7)]
+flops_OptTB_single = [int(269739960791*0.7),int(23253035475*0.7)]
 
 if 0 in args.plots:
     for precision in precision_dict.values():
@@ -536,10 +536,36 @@ if 3 in args.plots:
         blocksize_flat = '512'
         sort = sort_dict['-']
 
-        filtered_results_dict = {k: v for (k, v) in filtered_results_dict 
+        filtered_results_dict1 = {k: v for (k, v) in filtered_results_dict 
             if precision in k and (blocksize_outer in k or blocksize_flat in k) and device in k and sort in k}
 
-        for result in filtered_results_dict.items():
+        for result in filtered_results_dict1.items():
+            flops = []
+            if precision == precision_dict['float'] and version_dict['cuda-option'] in result[0]: flops = flops_OptT_single
+            if precision == precision_dict['float'] and version_dict['cuda-multi'] in result[0]: flops = flops_OptsTB_single
+            if precision == precision_dict['double'] and version_dict['cuda-option'] in result[0]: flops = flops_OptT_double
+            if precision == precision_dict['double'] and version_dict['cuda-multi'] in result[0]: flops = flops_OptsTB_double
+            
+            print(flops)
+            print_str = result[0] + '\t\t'
+
+            for dataset_index in range(datasets_count):
+                gflops = flops[dataset_index]*(10e-9)/(result[1][dataset_index][0]*(10e-6))
+                memsize = result[1][dataset_index][1]/(1024*1024)
+                print_str += ' & ' + "{0:0.2f}".format(gflops) + ' & & ' + "{0:0.3f}".format(memsize)
+            
+            print(print_str)
+
+        device = device_dict['gtx780']
+        precision = precision_dict['float']
+        blocksize_outer = '128'
+        blocksize_flat = '512'
+        sort = sort_dict['-']
+
+        filtered_results_dict2 = {k: v for (k, v) in filtered_results_dict 
+            if precision in k and (blocksize_outer in k or blocksize_flat in k) and device in k and sort in k}
+
+        for result in filtered_results_dict2.items():
             flops = []
             if precision == precision_dict['float'] and version_dict['cuda-option'] in result[0]: flops = flops_OptT_single
             if precision == precision_dict['float'] and version_dict['cuda-multi'] in result[0]: flops = flops_OptsTB_single

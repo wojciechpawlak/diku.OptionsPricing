@@ -6,11 +6,11 @@
 
 # program options
 rep=3
-device=0
-sorts="-s - -s w -s W -s h -s H"
+device=$1
+sorts="-s - -s w -s W"
 # sorts="w h"
 # block_sizes="32 64 128 256 512 1024"
-block_sizes="-b 64 -b 128"
+block_sizes="-b 128"
 versions="-v 1 -v 2 -v 3 -v 4"
 # versions="3 4"
 

@@ -1,8 +1,13 @@
 CXX	= nvcc
 CPP	= g++ 
+
 ARCHS := -gencode arch=compute_70,code=sm_70
 NVCC_FLAGS := $(ARCHS) --std=c++11 -m64 --expt-extended-lambda -Xcompiler '-O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp'
 GCC_FLAGS := -O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp
+
+ARCHS_GTX780 := -gencode arch=compute_35,code=sm_35
+NVCC_FLAGS_GTX780 := $(ARCHS_GTX780) --std=c++11 -m64 --expt-extended-lambda -Xptxas=-v
+GCC_FLAGS_GTX780 := -Xcompiler '-O3 -Wall -Wextra -std=c++11 -fPIC -m64 -fopenmp -DUSE_GETOPT_ARGS'
 
 SOURCES_CPP = TestMain.cpp TestCuda.cu
 EXECUTABLE  = ../build/Test
@@ -30,6 +35,10 @@ default: run
 compile: $(EXECUTABLE)
 $(EXECUTABLE): 
 	@$(CXX) $(NVCC_FLAGS) $(REG_COUNT) $(DEFINE_DOUBLE) -o $(EXECUTABLE) $(SOURCES_CPP)
+
+compile_gtx780: $(EXECUTABLE)
+$(EXECUTABLE): 
+	@$(CXX) $(NVCC_FLAGS_GTX780) $(GCC_FLAGS_GTX780) $(REG_COUNT) $(DEFINE_DOUBLE) -o $(EXECUTABLE) $(SOURCES_CPP)
 
 compile-compare: $(EXECUTABLE_COMPARE)
 $(EXECUTABLE_COMPARE):

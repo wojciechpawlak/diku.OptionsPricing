@@ -9,9 +9,9 @@ real=64
 reg=""
 
 # program options
-device=0
+device=$1
 # sorts="- w W h H"
-sorts="-"
+sorts="- w W"
 # block_sizes="64 128"
 block_sizes="128"
 versions="1 2 3 4"
@@ -39,15 +39,9 @@ compile() {
     echo "Compiling float version..."
     make -B compile REAL=32
     mv $exe $exefloat
-    # echo "Compiling float version with 32 registers..."
-    # make -B compile REAL=32 REG=32
-    # mv $exe $exefloatreg
     echo "Compiling double version..."
     make -B compile REAL=64
     mv $exe $exedouble
-    # echo "Compiling double version with 32 registers..."
-    # make -B compile REAL=64 REG=32
-    # mv $exe $exedoublereg
     echo "Compiling compare..."
     make --no-print-directory -C $test_dir -B compile-compare REAL=$real
 }

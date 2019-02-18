@@ -43,7 +43,8 @@ exedoublereg=$exedouble"-reg32"
 exes=($exefloat $exefloatreg $exedouble $exedoublereg)
 exes_names=("float,-" "float,32" "double,-" "double,32")
 # exes_to_run=(0 1 2 3)
-exes_to_run=(2 3)
+#exes_to_run=(2 3)
+exes_to_run=(0 1)
 
 compile() {
     echo "Compiling float version..."
@@ -76,7 +77,7 @@ compare() {
                         echo "Comparing ${exes[$index]} on $file (version $version, block size $block_size, sort $sort)"
                         {
                             ./${exes[$index]} -o $data_path/$file.in -s $sort -v $version -b $block_size -d $device
-                            if [ $index = 0 || $index = 1 ]; then
+                            if [ $index = 0 ] || [ $index = 1 ]; then
                                 cat $data_path/out32/$file.out
                             else
                                 cat $data_path/out64/$file.out
