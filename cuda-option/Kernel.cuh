@@ -360,11 +360,11 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
             const auto jind = j + c.jmax;      // array index for j
             const auto discFactor = expmAlphadt * args.getRateAt(jind) * c.expmOasdt;
 
-            real res;
+            real currentStepPrice;
             if (j == c.jmax)
             {
                 // Top edge branching
-                res = (args.getPAt(jind, 1) * args.getQAt(jind) +
+                currentStepPrice = (args.getPAt(jind, 1) * args.getQAt(jind) +
                     args.getPAt(jind, 2) * args.getQAt(jind - 1) +
                     args.getPAt(jind, 3) * args.getQAt(jind - 2)) *
                     discFactor;
@@ -372,7 +372,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
             else if (j == -c.jmax)
             {
                 // Bottom edge branching
-                res = (args.getPAt(jind, 1) * args.getQAt(jind + 2) +
+                currentStepPrice = (args.getPAt(jind, 1) * args.getQAt(jind + 2) +
                     args.getPAt(jind, 2) * args.getQAt(jind + 1) +
                     args.getPAt(jind, 3) * args.getQAt(jind)) *
                     discFactor;
@@ -380,14 +380,14 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
             else
             {
                 // Standard branching
-                res = (args.getPAt(jind, 1) * args.getQAt(jind + 1) +
+                currentStepPrice = (args.getPAt(jind, 1) * args.getQAt(jind + 1) +
                     args.getPAt(jind, 2) * args.getQAt(jind) +
                     args.getPAt(jind, 3) * args.getQAt(jind - 1)) *
                     discFactor;
             }
 
             // after obtaining the result from (i+1) nodes, set the call for ith node
-            args.setQCopyAt(jind, getOptionPayoff(isExerciseStep, c.X, c.type, res, ai));
+            args.setQCopyAt(jind, getOptionPayoff(isExerciseStep, c.X, c.type, currentStepPrice, ai));
         }
 
         // Switch Qs

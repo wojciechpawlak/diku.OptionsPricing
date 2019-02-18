@@ -112,85 +112,95 @@ public:
         return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 7 * sizeof(real)];
     }
 
+    __device__ inline volatile real* getAccruedInterests() // ai
+    {
+        return (real *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 8 * sizeof(real)];
+    }
+
     __device__ inline volatile real** getFirstYieldCurveRates()
     {
-        return (real **)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 8 * sizeof(real)];
+        return (real **)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * 9 * sizeof(real)];
     }
 
     __device__ inline volatile uint16_t** getFirstYieldCurveTimeSteps()
     {
-        return (uint16_t **)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *))];
+        return (uint16_t **)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *))];
     }
 
     // 4-byte size variables, aligned to 4 byte (32-bit) border
 
     __device__ inline volatile int32_t* getLastUsedCIndices()
     {
-        return (int32_t *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
+        return (int32_t *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *))];
     }
-       
+
     // 2-byte size variables, aligned to 2-byte (16-bit) border
 
     __device__ inline volatile uint16_t* getValuationFlags()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t))];
     }
 
     __device__ inline volatile uint16_t* getJmaxs()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t))];
     }
 
     __device__ inline volatile uint16_t* getNs()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + sizeof(uint16_t))];
     }
 
     __device__ inline volatile uint16_t* getTermUnits()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 2 * sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 2 * sizeof(uint16_t))];
     }
 
     __device__ inline volatile uint16_t* getLastUsedYCTermIndices()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 3 * sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 3 * sizeof(uint16_t))];
     }
 
     __device__ inline volatile uint16_t* getLastCSteps()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 4 * sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 4 * sizeof(uint16_t))];
     }
 
     __device__ inline volatile uint16_t* getRemainingCashflows()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 5 * sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 5 * sizeof(uint16_t))];
     }
 
     __device__ inline volatile uint16_t* getYieldCurveTermCounts()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 6 * sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 6 * sizeof(uint16_t))];
     }
 
     __device__ inline volatile uint16_t* getLastExerciseSteps()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 7 * sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 7 * sizeof(uint16_t))];
     }
 
     __device__ inline volatile uint16_t* getFirstExerciseSteps()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 8 * sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 8 * sizeof(uint16_t))];
     }
 
     __device__ inline volatile uint16_t* getExerciseStepFrequencies()
     {
-        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 9 * sizeof(uint16_t))];
+        return (uint16_t *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 9 * sizeof(uint16_t))];
     }
 
     // 1-byte size variables, aligned to 1 byte (8-bit) border
 
     __device__ inline volatile OptionTypeE* getOptionTypes() // type
     {
-        return (OptionTypeE *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 10 * sizeof(uint16_t))];
+        return (OptionTypeE *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 10 * sizeof(uint16_t))];
+    }
+
+    __device__ inline volatile bool* getIsExerciseSteps() // type
+    {
+        return (bool *)&sh_mem[blockDim.x * (5 * sizeof(real) + sizeof(uint16_t)) + values.maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 10 * sizeof(uint16_t) + sizeof(OptionTypeE))];
     }
 
     __device__ inline real getPs(const int index, const int branch)
@@ -293,16 +303,19 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
         args.getLastCashflows()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
         args.getLastCSteps()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
         args.getRemainingCashflows()[threadIdx.x] = valuations.Cashflows[sortedIdx];
+
+        args.getIsExerciseSteps()[threadIdx.x] = false;
+        args.getAccruedInterests()[threadIdx.x] = zero;
 #ifdef DEV
         if (idx == PRINT_IDX)
             printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %.18f %d %d %d %.18f %d %d %d %d %.18f %d %d %d %d %d\n", idx, threadIdx.x, blockIdx.x,
-            args.getTermUnits()[threadIdx.x], args.getDts()[threadIdx.x], args.getNs()[threadIdx.x], args.getStrikes()[threadIdx.x], args.getOptionTypes()[threadIdx.x],
-            args.getMs()[threadIdx.x], args.getMdrdts()[threadIdx.x], args.getJmaxs()[threadIdx.x], args.getExpmOasdts()[threadIdx.x],
-            args.getLastExerciseSteps()[threadIdx.x], args.getFirstExerciseSteps()[threadIdx.x], args.getExerciseStepFrequencies()[threadIdx.x],
-            args.getYieldCurveTermCounts()[threadIdx.x], *args.getFirstYieldCurveRates()[threadIdx.x], *args.getFirstYieldCurveTimeSteps()[threadIdx.x], args.getLastUsedYCTermIndices()[threadIdx.x],
-            args.getLastUsedCIndices()[threadIdx.x], args.getLastCashflows()[threadIdx.x], args.getLastCSteps()[threadIdx.x], args.getRemainingCashflows()[threadIdx.x],
-            ycIndex, firstYCTermIndex, valuations.YieldCurveRates[firstYCTermIndex], valuations.YieldCurveTimeSteps[firstYCTermIndex],
-            valuations.CashflowIndices[sortedIdx], valuations.Cashflows[sortedIdx], sortedIdx, args.getValuationInds()[threadIdx.x]);
+                args.getTermUnits()[threadIdx.x], args.getDts()[threadIdx.x], args.getNs()[threadIdx.x], args.getStrikes()[threadIdx.x], args.getOptionTypes()[threadIdx.x],
+                args.getMs()[threadIdx.x], args.getMdrdts()[threadIdx.x], args.getJmaxs()[threadIdx.x], args.getExpmOasdts()[threadIdx.x],
+                args.getLastExerciseSteps()[threadIdx.x], args.getFirstExerciseSteps()[threadIdx.x], args.getExerciseStepFrequencies()[threadIdx.x],
+                args.getYieldCurveTermCounts()[threadIdx.x], *args.getFirstYieldCurveRates()[threadIdx.x], *args.getFirstYieldCurveTimeSteps()[threadIdx.x], args.getLastUsedYCTermIndices()[threadIdx.x],
+                args.getLastUsedCIndices()[threadIdx.x], args.getLastCashflows()[threadIdx.x], args.getLastCSteps()[threadIdx.x], args.getRemainingCashflows()[threadIdx.x],
+                ycIndex, firstYCTermIndex, valuations.YieldCurveRates[firstYCTermIndex], valuations.YieldCurveTimeSteps[firstYCTermIndex],
+                valuations.CashflowIndices[sortedIdx], valuations.Cashflows[sortedIdx], sortedIdx, args.getValuationInds()[threadIdx.x]);
 #endif
     }
     else
@@ -560,23 +573,13 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
     for (auto i = args.getMaxHeight() - 1; i >= 0; --i)
     {
         const int jhigh = min(i, args.getJmaxs()[valLIdx]);
-
-        real price = args.getQs()[threadIdx.x];
-
-        auto isExerciseStep = false;
-        auto ai = zero;
+        real nextStepPrice = args.getQs()[threadIdx.x];
+        real currentStepPrice = zero;
 
         // check if there is an option exercise at this step
         // add coupon and repayment if crossed a time step with a cashflow
         if (i < args.getNs()[valLIdx] && j >= -jhigh && j <= jhigh)
         {
-            isExerciseStep = (i <= args.getLastExerciseSteps()[valLIdx] && i >= args.getFirstExerciseSteps()[valLIdx] && (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[valLIdx] == 0);
-#ifdef DEV2
-            if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
-                printf("%d %d: %.18f %d %d %d %d\n",
-                    valGIdx, i, args.getAlphaAt(i, valLIdx), isExerciseStep, args.getLastCSteps()[valLIdx], (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[valLIdx],
-                    (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[valLIdx] == 0);
-#endif
             if (i == args.getLastCSteps()[valLIdx] - 1 && args.getRemainingCashflows()[valLIdx] > 0)
             {
 #ifdef DEV2
@@ -593,25 +596,23 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
         }
         __syncthreads();
 
-        if (idx < firstValGIdxBlockNext && i < args.getNs()[threadIdx.x] && i == args.getLastCSteps()[threadIdx.x] - 1 && args.getRemainingCashflows()[threadIdx.x] > 0)
-        {
-            args.getLastUsedCIndices()[threadIdx.x] = (args.getLastUsedCIndices()[threadIdx.x] - 1 >= 0) ? args.getLastUsedCIndices()[threadIdx.x] - 1 : 0;
-            auto lastUsedCIdx = args.getLastUsedCIndices()[threadIdx.x];
-            args.getLastCSteps()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
-            args.getRemainingCashflows()[threadIdx.x]--;
-        }
-        __syncthreads();
-
+#ifdef DEV2
+        if (valGIdx == PRINT_IDX && threadIdx.x == middleThreadIdx)
+            printf("%d %d: %.18f %d %d %d %d\n",
+                valGIdx, i, args.getAlphaAt(i, valLIdx), args.getIsExerciseSteps()[valLIdx], args.getLastCSteps()[valLIdx], 
+                (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[valLIdx],
+                (args.getLastCSteps()[valLIdx] - i) % args.getExerciseStepFrequencies()[valLIdx] == 0);
+#endif
+        
         if (i < args.getNs()[valLIdx] && j >= -jhigh && j <= jhigh)
         {
             const auto expmAlphadt = (valGIdx < firstValGIdxBlockNext) ? args.getAlphaAt(i, valLIdx) : 0.0;
             const auto discFactor = expmAlphadt * args.getRates()[threadIdx.x] * args.getExpmOasdts()[valLIdx];
 
-            real res;
             if (j == args.getJmaxs()[valLIdx])
             {
                 // Top edge branching
-                res = (args.getPs(threadIdx.x, 1) * args.getQs()[threadIdx.x] +
+                currentStepPrice = (args.getPs(threadIdx.x, 1) * args.getQs()[threadIdx.x] +
                     args.getPs(threadIdx.x, 2) * args.getQs()[threadIdx.x - 1] +
                     args.getPs(threadIdx.x, 3) * args.getQs()[threadIdx.x - 2]) *
                     discFactor;
@@ -619,7 +620,7 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
             else if (j == -args.getJmaxs()[valLIdx])
             {
                 // Bottom edge branching
-                res = (args.getPs(threadIdx.x, 1) * args.getQs()[threadIdx.x + 2] +
+                currentStepPrice = (args.getPs(threadIdx.x, 1) * args.getQs()[threadIdx.x + 2] +
                     args.getPs(threadIdx.x, 2) * args.getQs()[threadIdx.x + 1] +
                     args.getPs(threadIdx.x, 3) * args.getQs()[threadIdx.x]) *
                     discFactor;
@@ -627,41 +628,59 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
             else
             {
                 // Standard branching
-                res = (args.getPs(threadIdx.x, 1) * args.getQs()[threadIdx.x + 1] +
+                currentStepPrice = (args.getPs(threadIdx.x, 1) * args.getQs()[threadIdx.x + 1] +
                     args.getPs(threadIdx.x, 2) * args.getQs()[threadIdx.x] +
                     args.getPs(threadIdx.x, 3) * args.getQs()[threadIdx.x - 1]) *
                     discFactor;
             }
+        }
 
-            // calculate accrued interest from cashflow
-            ai = isExerciseStep && args.getLastCSteps()[valLIdx] != 0 && args.getRemainingCashflows()[valLIdx] > 0
-                ? computeAccruedInterest(i, args.getLastCSteps()[valLIdx], valuations.CashflowSteps[args.getLastUsedCIndices()[valLIdx] + 1], valuations.Coupons[args.getLastUsedCIndices()[valLIdx]])
+        if (idx < firstValGIdxBlockNext && i < args.getNs()[threadIdx.x])
+        {
+            // check if there is an option exercise at the current time step
+            args.getIsExerciseSteps()[threadIdx.x] = (i <= args.getLastExerciseSteps()[threadIdx.x] && i >= args.getFirstExerciseSteps()[threadIdx.x] && (args.getLastCSteps()[threadIdx.x] - i) % args.getExerciseStepFrequencies()[threadIdx.x] == 0);
+
+            // check if there more cashflows remaining and update the cashflow indexing accordingly
+            if (i == args.getLastCSteps()[threadIdx.x] - 1 && args.getRemainingCashflows()[threadIdx.x] > 0)
+            {
+                args.getLastUsedCIndices()[threadIdx.x] = (args.getLastUsedCIndices()[threadIdx.x] - 1 >= 0) ? args.getLastUsedCIndices()[threadIdx.x] - 1 : 0;
+                auto lastUsedCIdx = args.getLastUsedCIndices()[threadIdx.x];
+                args.getLastCSteps()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
+                args.getRemainingCashflows()[threadIdx.x]--;
+            }
+
+            // calculate accrued interest from the current last cashflow
+            args.getAccruedInterests()[threadIdx.x] = args.getIsExerciseSteps()[threadIdx.x] && args.getLastCSteps()[threadIdx.x] != 0 && args.getRemainingCashflows()[threadIdx.x] > 0
+                ? computeAccruedInterest(i, args.getLastCSteps()[threadIdx.x], valuations.CashflowSteps[args.getLastUsedCIndices()[threadIdx.x] + 1], valuations.Coupons[args.getLastUsedCIndices()[threadIdx.x]])
                 : zero;
 
-            // after obtaining the result from (i+1) nodes, set the call for ith node
-            price = getOptionPayoff(isExerciseStep, args.getStrikes()[valLIdx], args.getOptionTypes()[valLIdx], res, ai);
-        }
-        __syncthreads();
-
-        if (idx < firstValGIdxBlockNext && i < args.getNs()[threadIdx.x] && i == args.getLastCSteps()[threadIdx.x])
-        {
-            auto lastUsedCIdx = args.getLastUsedCIndices()[threadIdx.x];
-            args.getLastCashflows()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
-        }
-
-        args.getQs()[threadIdx.x] = price;
+            // update the last cashflow (next to be used in backward propgation)
+            if (i == args.getLastCSteps()[threadIdx.x])
+            {
+                auto lastUsedCIdx = args.getLastUsedCIndices()[threadIdx.x];
+                args.getLastCashflows()[threadIdx.x] = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
+            }
 #ifdef DEV2
+            if (idx == PRINT_IDX && args.getIsExerciseSteps()[threadIdx.x] && args.getLastCSteps()[threadIdx.x] != 0 && args.getRemainingCashflows()[threadIdx.x] > 0)
+            {
+                auto lastUsedCIdx = args.getLastUsedCIndices()[threadIdx.x];
+                printf("%d %d: ai %.18f %d %d %.18f %d %d %.18f\n", idx, i, args.getAccruedInterests()[threadIdx.x], args.getLastCSteps()[threadIdx.x],
+                    valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
+                    valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x], valuations.CashflowSteps[lastUsedCIdx + 1] - i,
+                    (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x] - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x]));
+            }
+#endif
+        }
         __syncthreads();
 
-        if (idx < firstValGIdxBlockNext && i < args.getNs()[threadIdx.x] && idx == PRINT_IDX && isExerciseStep && args.getLastCSteps()[threadIdx.x] != 0 && args.getRemainingCashflows()[threadIdx.x] > 0)
+        // after obtaining the result from (i+1) nodes, set the call for ith node
+        if (i < args.getNs()[valLIdx] && j >= -jhigh && j <= jhigh)
         {
-            auto lastUsedCIdx = args.getLastUsedCIndices()[threadIdx.x];
-            printf("%d %d: ai %.18f %d %d %.18f %d %d %.18f\n", idx, i, ai, args.getLastCSteps()[threadIdx.x],
-                valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
-                valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x], valuations.CashflowSteps[lastUsedCIdx + 1] - i,
-                (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x] - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x]));
+            nextStepPrice = getOptionPayoff(args.getIsExerciseSteps()[valLIdx], args.getStrikes()[valLIdx], args.getOptionTypes()[valLIdx], currentStepPrice, args.getAccruedInterests()[valLIdx]);
         }
 
+        args.getQs()[threadIdx.x] = nextStepPrice;
+#ifdef DEV2
         if (i < args.getNs()[valLIdx] && valGIdx == PRINT_IDX && valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx)
             printf("%d %d: %.18f\n", valGIdx, i, args.getQs()[threadIdx.x]);
 #endif
@@ -675,7 +694,7 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
         if (valGIdx == PRINT_IDX) printf("%d: res %.18f\n", valGIdx, args.getQs()[threadIdx.x]);
 #endif
     }
-}
+    }
 
 class KernelRunBase
 {
@@ -693,9 +712,9 @@ protected:
     void runKernel(CudaValuations &valuations, std::vector<real> &results, thrust::device_vector<int32_t> &inds,
         KernelArgsValuesT &values, const int totalAlphasCount, const int maxValuationsBlock)
     {
-        const int sharedMemorySize = 
+        const int sharedMemorySize =
             BlockSize * (5 * sizeof(real) + sizeof(uint16_t))
-            + maxValuationsBlock * (8 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 10 * sizeof(uint16_t) + sizeof(OptionTypeE));
+            + maxValuationsBlock * (9 * sizeof(real) + sizeof(real *) + sizeof(uint16_t *) + sizeof(int32_t) + 10 * sizeof(uint16_t) + sizeof(OptionTypeE) + sizeof(bool));
         thrust::device_vector<real> alphas(totalAlphasCount);
         thrust::device_vector<real> result(valuations.ValuationCount);
 
