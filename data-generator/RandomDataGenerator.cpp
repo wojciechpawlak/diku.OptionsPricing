@@ -8,7 +8,7 @@
 #include <random>
 #include <vector>
 
-#define USE_GETOPT_ARGS
+//#define USE_GETOPT_ARGS
 
 #ifdef USE_GETOPT_ARGS
 #include "../common/getoptpp/getopt_pp_standalone.h"
@@ -422,13 +422,12 @@ int main(int argc, char *argv[])
     randomSeed = 12345;
     outputPath = "../data/";
 
-
     GetOpt::GetOpt_pp cmd(argc, argv);
     cmd >> GetOpt::Option('t', "dataType", dataType);
     cmd >> GetOpt::Option('n', "totalValuations", totalValuations);
     cmd >> GetOpt::Option('y', "totalYieldCurves", totalYieldCurves);
-    cmd >> GetOpt::Option('c', "noCashflows", noCashflows);
-    cmd >> GetOpt::Option('e', "onlyEuropean", onlyEuropean);
+    cmd >> GetOpt::OptionPresent('c', "noCashflows", noCashflows);
+    cmd >> GetOpt::OptionPresent('e', "onlyEuropean", onlyEuropean);
     cmd >> GetOpt::Option('s', "skewPercent", skewPercent);
     cmd >> GetOpt::Option('r', "randomSeed", randomSeed);
     cmd >> GetOpt::Option('p', "outputPath", outputPath);
