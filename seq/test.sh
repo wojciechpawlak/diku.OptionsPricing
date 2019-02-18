@@ -70,6 +70,8 @@ validate() {
 
 if [ "$1" = "compile" ]; then
     compile
+elif [ "$1" = "compile_gtx780" ]; then
+    compile_gtx780
 elif [ "$1" = "validate" ]; then
     validate
 else

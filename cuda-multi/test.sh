@@ -77,6 +77,8 @@ compile_gtx780() {
 
 if [ "$1" = "compile" ]; then
     compile
+elif [ "$1" = "compile_gtx780" ]; then
+    compile_gtx780
 else
     test
 fi
