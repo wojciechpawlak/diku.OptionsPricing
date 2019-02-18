@@ -104,18 +104,21 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     computeConstants(c, valuations, idx);
     // Helper variables
     volatile uint16_t lastUsedYCTermIdx = 0;
-    auto lastUsedCIdx = valuations.CashflowIndices[idx] + valuations.Cashflows[idx] - 1;
+    auto lastUsedCIdx = valuations.CashflowIndices[idx] + (int)valuations.Cashflows[idx] - 1;
     auto lastCashflow = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
     auto cashflowsRemaining = valuations.Cashflows[idx];
     auto lastCStep = valuations.CashflowSteps[lastUsedCIdx];
     auto alpha = 0.0;
 #ifdef DEV
-    if (idx == PRINT_IDX) printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %d %.18f %d %d %d %.18f %d %d\n", idx, threadIdx.x, blockIdx.x,
+    const auto ycIndex = valuations.YieldCurveIndices[idx];
+    const auto firstYCTermIndex = valuations.YieldCurveTermIndices[ycIndex];
+    if (idx == PRINT_IDX) printf("%d %d %d: Input %d %.18f %d %.18f %d %.18f %.18f %d %.18f %d %d %d %d %.18f %d %d %d %.18f %d %d %d %d %.18f %d\n", idx, threadIdx.x, blockIdx.x,
         c.termUnit, c.dt, c.n, c.X, c.type, c.M, c.mdrdt, c.jmax, c.expmOasdt, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency,
-        c.firstYCTermIdx, c.yieldCurveTermCount, *c.firstYieldCurveRate, *c.firstYieldCurveTimeStep, lastUsedYCTermIdx,
-        lastUsedCIdx, lastCashflow, lastCStep, cashflowsRemaining);
+        c.yieldCurveTermCount, *c.firstYieldCurveRate, *c.firstYieldCurveTimeStep, lastUsedYCTermIdx,
+        lastUsedCIdx, lastCashflow, lastCStep, cashflowsRemaining,
+        ycIndex, firstYCTermIndex, valuations.YieldCurveRates[firstYCTermIndex], valuations.YieldCurveTimeSteps[firstYCTermIndex]);
 #endif
-#ifdef DEV
+#ifdef DEV_EXTRA
     // problem with exponent function on single precision
     // exp function on GPU yields slightly different result than exp on CPU
     // the difference propagates to all the other computations 
@@ -124,8 +127,8 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     const auto sigma = valuations.Volatilities[idx];
     const double tmp = -two * a * c.dt;
     const auto exp_tmp = exp(tmp);
-    if (idx == PRINT_IDX) printf("%d: %d %.18f %.18f %.18f %.18f %.18f %.18f %.18f %d %d %d %d\n",
-        idx, c.n, a, sigma, tmp, exp_tmp, sigma * sigma * (one - exp_tmp) / (two * a), c.dr, c.dt, c.firstYCTermIdx, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency);
+    if (idx == PRINT_IDX) printf("%d: %d %.18f %.18f %.18f %.18f %.18f %.18f %d %d %d %d\n",
+        idx, c.n, a, sigma, tmp, exp_tmp, sigma * sigma * (one - exp_tmp) / (two * a), c.dt, c.firstYCTermIdx, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency);
     if (idx == PRINT_IDX) printf("%d: %.18f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
 #endif
     args.init(valuations);

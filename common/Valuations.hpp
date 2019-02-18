@@ -55,7 +55,7 @@ struct Valuations
     std::vector<real> Volatilities;
     // Bond parameters
     std::vector<real> Maturities;
-    std::vector<uint16_t> Cashflows;
+    std::vector<uint32_t> Cashflows;
     std::vector<uint16_t> CashflowSteps;
     std::vector<real> Repayments;
     std::vector<real> Coupons;
@@ -67,7 +67,7 @@ struct Valuations
     std::vector<uint16_t> LastExerciseSteps;
     std::vector<uint16_t> ExerciseStepFrequencies;
     // Yield Curve parameters
-    std::vector<uint16_t> YieldCurveIndices;
+    std::vector<int32_t> YieldCurveIndices;
 
     std::vector<uint16_t> YieldCurveTerms;
     std::vector<real> YieldCurveRates;

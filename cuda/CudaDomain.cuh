@@ -40,7 +40,7 @@ struct KernelValuations
     uint16_t *LastExerciseSteps;
     uint16_t *ExerciseStepFrequencies;
     // Yield Curve parameters
-    uint16_t *YieldCurveIndices;
+    int32_t *YieldCurveIndices;
     uint16_t *YieldCurveTerms;
     real *YieldCurveRates;
     uint16_t *YieldCurveTimeSteps;
@@ -117,7 +117,7 @@ private:
     thrust::device_vector<uint16_t> LastExerciseSteps;
     thrust::device_vector<uint16_t> ExerciseStepFrequencies;
     // Yield Curve parameters
-    thrust::device_vector<uint16_t> YieldCurveIndices;
+    thrust::device_vector<int32_t> YieldCurveIndices;
     thrust::device_vector<uint16_t> YieldCurveTerms;
     thrust::device_vector<real> YieldCurveRates;
     thrust::device_vector<uint16_t> YieldCurveTimeSteps;
@@ -344,9 +344,10 @@ __device__ void computeConstants(ValuationConstants &c, const KernelValuations &
     c.firstExerciseStep = valuations.FirstExerciseSteps[idx];
     c.exerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
 
-    const auto firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
-    c.firstYieldCurveRate = &valuations.YieldCurveRates[c.firstYCTermIdx];
-    c.firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[c.firstYCTermIdx];
+    const auto ycIndex = valuations.YieldCurveIndices[idx];
+    const auto firstYCTermIdx = valuations.YieldCurveTermIndices[ycIndex];
+    c.firstYieldCurveRate = &valuations.YieldCurveRates[firstYCTermIdx];
+    c.firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[firstYCTermIdx];
     c.yieldCurveTermCount = valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]];
 }
 

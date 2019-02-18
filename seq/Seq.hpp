@@ -30,12 +30,12 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     auto alphas = new real[c.n + 1](); // alphas[i]
     auto alpha = 0.0;
     volatile uint16_t lastUsedYCTermIdx = 0;
-#ifdef DEV
+#ifdef DEV_EXTRA
     auto a = valuations.MeanReversionRates.at(idx);
     auto sigma = valuations.Volatilities.at(idx);
     const auto tmp = -two * a * c.dt;
-    if (idx == PRINT_IDX) printf("%d: %d %.18f %.18f %.18f %.18f %.18f %.18f %.18f %d %d %d %d\n",
-        idx, c.n, a, sigma, tmp, exp(tmp), sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a), c.dr, c.dt, c.firstYCTermIdx, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency);
+    if (idx == PRINT_IDX) printf("%d: %d %.18f %.18f %.18f %.18f %.18f %.18f %d %d %d %d\n",
+        idx, c.n, a, sigma, tmp, exp(tmp), sigma * sigma * (one - exp(-two * a * c.dt)) / (two * a), c.dt, c.firstYCTermIdx, c.lastExerciseStep, c.firstExerciseStep, c.exerciseStepFrequency);
     if (idx == PRINT_IDX) printf("%d: %.18f %d %d\n", idx, valuations.YieldCurveRates[c.firstYCTermIdx], valuations.YieldCurveTimeSteps[c.firstYCTermIdx], valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]]);
 #endif
 
@@ -336,7 +336,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV2
         if (idx == PRINT_IDX && i == lastCStep - 1)
-            printf("%d %d: ai %f %d %d %d %f %d %d %f\n", idx, i, ai, c.termStepCount, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
+            printf("%d %d: ai %f %d %d %f %d %d %f\n", idx, i, ai, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
                 valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1] - i,
                 (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep));
 #endif

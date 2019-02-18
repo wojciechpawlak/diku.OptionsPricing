@@ -27,7 +27,6 @@ struct ValuationConstants
     uint16_t firstExerciseStep;
     uint16_t exerciseStepFrequency;
 
-    uint16_t firstYCTermIdx;
     const real *firstYieldCurveRate;
     const uint16_t *firstYieldCurveTimeStep;
     uint16_t yieldCurveTermCount;
@@ -45,10 +44,10 @@ struct ValuationConstants
         type = valuations.OptionTypes.at(idx);
         X = valuations.StrikePrices.at(idx);
 
-        auto a = valuations.MeanReversionRates.at(idx);
-        auto sigma = valuations.Volatilities.at(idx);
-        auto V = sigma * sigma * (one - exp(-two * a * dt)) / (two * a);
-        auto dr = sqrt(three * V);
+        const auto a = valuations.MeanReversionRates.at(idx);
+        const auto sigma = valuations.Volatilities.at(idx);
+        const auto V = sigma * sigma * (one - exp(-two * a * dt)) / (two * a);
+        const auto dr = sqrt(three * V);
         M = exp(-a * dt) - one;
 
         // simplified computations
@@ -67,7 +66,8 @@ struct ValuationConstants
         firstExerciseStep = valuations.FirstExerciseSteps[idx];
         exerciseStepFrequency = valuations.ExerciseStepFrequencies[idx];
 
-        auto firstYCTermIdx = valuations.YieldCurveTermIndices[valuations.YieldCurveIndices[idx]];
+        const auto ycIndex = valuations.YieldCurveIndices[idx];
+        const auto firstYCTermIdx = valuations.YieldCurveTermIndices[ycIndex];
         firstYieldCurveRate = &valuations.YieldCurveRates[firstYCTermIdx];
         firstYieldCurveTimeStep = &valuations.YieldCurveTimeSteps[firstYCTermIdx];
         yieldCurveTermCount = valuations.YieldCurveTerms[valuations.YieldCurveIndices[idx]];

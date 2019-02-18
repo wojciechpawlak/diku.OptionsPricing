@@ -7,7 +7,8 @@
 //#define DEV
 //#define DEV1
 //#define DEV2
-#define PRINT_IDX 7
+//#define DEV_EXTRA
+#define PRINT_IDX 0
 #define PRINT_FIRST_ITER -1
 #define PRINT_LAST_ITER -1
 
