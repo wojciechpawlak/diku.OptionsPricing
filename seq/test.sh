@@ -31,6 +31,15 @@ compile() {
     mv $exe $exedouble
 }
 
+compile_gtx780() {
+    echo "Compiling float version..."
+    make -B compile_gtx780 REAL=32
+    mv $exe $exefloat
+    echo "Compiling double version..."
+    make -B compile_gtx780 REAL=64
+    mv $exe $exedouble
+}
+
 test() {
     echo "file,precision,registers,version,block,sort,kernel time,total time,memory"
     for file in ${files[*]}

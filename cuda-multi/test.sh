@@ -34,6 +34,17 @@ exes_names=("float,-" "float,32" "double,-" "double,32")
 # exes_to_run=(0 1 2 3)
 exes_to_run=(0 1 2 3)
 
+test() {
+    echo "file,precision,registers,version,block,sort,kernel time,total time,memory"
+    for file in ${files[*]}
+    do
+        for index in ${exes_to_run[*]}
+        do 
+            ./${exes[$index]} -o $data_path/$file.in $sorts $versions $block_sizes -r $rep -d $device | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
+        done
+    done
+}
+
 compile() {
     echo "Compiling float version..."
     make -B compile REAL=32
@@ -49,15 +60,19 @@ compile() {
     mv $exe $exedoublereg
 }
 
-test() {
-    echo "file,precision,registers,version,block,sort,kernel time,total time,memory"
-    for file in ${files[*]}
-    do
-        for index in ${exes_to_run[*]}
-        do 
-            ./${exes[$index]} -o $data_path/$file.in $sorts $versions $block_sizes -r $rep -d $device | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
-        done
-    done
+compile_gtx780() {
+    echo "Compiling float version..."
+    make -B compile_gtx780 REAL=32
+    mv $exe $exefloat
+    echo "Compiling float version with 32 registers..."
+    make -B compile_gtx780 REAL=32 REG=32
+    mv $exe $exefloatreg
+    echo "Compiling double version..."
+    make -B compile_gtx780 REAL=64
+    mv $exe $exedouble
+    echo "Compiling double version with 32 registers..."
+    make -B compile_gtx780 REAL=64 REG=32
+    mv $exe $exedoublereg
 }
 
 if [ "$1" = "compile" ]; then
