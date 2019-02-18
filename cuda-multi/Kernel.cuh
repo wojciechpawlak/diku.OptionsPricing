@@ -537,20 +537,15 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
         const auto lastUsedCIdx = args.getLastUsedCIndices()[threadIdx.x];
 #ifdef DEV2
         if (idx == PRINT_IDX)
-            printf("%d %d: %d %d %.18f %.18f %d %.18f\n", idx, args.getNs()[threadIdx.x],
-                lastUsedCIdx, args.getRemainingCashflows()[threadIdx.x], valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx],
-                valuations.CashflowSteps[lastUsedCIdx], args.getLastCashflows()[threadIdx.x]);
+            printf("%d %d: %d %d %.18f %.18f %.18f %d\n", idx, args.getNs()[threadIdx.x],
+                lastUsedCIdx, args.getRemainingCashflows()[threadIdx.x], args.getLastCashflows()[threadIdx.x], valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx],
+                valuations.CashflowSteps[lastUsedCIdx]);
 #endif
         args.getRemainingCashflows()[threadIdx.x]--;
-        if (valuations.CashflowSteps[lastUsedCIdx] <= args.getNs()[threadIdx.x] && args.getRemainingCashflows()[threadIdx.x] > 0)
+        if (lastUsedCIdx > 0 && args.getLastCSteps()[threadIdx.x] <= args.getNs()[threadIdx.x] && args.getRemainingCashflows()[threadIdx.x] > 0)
         {
-            args.getLastCSteps()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx - 1];
             args.getLastUsedCIndices()[threadIdx.x]--;
-        }
-        else
-        {
-            args.getLastCSteps()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx];
-
+            args.getLastCSteps()[threadIdx.x] = valuations.CashflowSteps[lastUsedCIdx - 1];
         }
     }
     __syncthreads();
@@ -656,17 +651,19 @@ __global__ void kernelMultipleValuationsPerThreadBlock(const KernelValuations va
 
         args.getQs()[threadIdx.x] = price;
 #ifdef DEV2
+        __syncthreads();
+
         if (idx < firstValGIdxBlockNext && i < args.getNs()[threadIdx.x] && idx == PRINT_IDX && isExerciseStep && args.getLastCSteps()[threadIdx.x] != 0 && args.getRemainingCashflows()[threadIdx.x] > 0)
         {
             auto lastUsedCIdx = args.getLastUsedCIndices()[threadIdx.x];
-            printf("%d %d: ai %f %d %d %f %d %d %f\n", idx, i, ai, args.getLastCSteps()[threadIdx.x],
+            printf("%d %d: ai %.18f %d %d %.18f %d %d %.18f\n", idx, i, ai, args.getLastCSteps()[threadIdx.x],
                 valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
                 valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x], valuations.CashflowSteps[lastUsedCIdx + 1] - i,
                 (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x] - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - args.getLastCSteps()[threadIdx.x]));
         }
 
         if (i < args.getNs()[valLIdx] && valGIdx == PRINT_IDX && valGIdx < firstValGIdxBlockNext && threadIdx.x == middleThreadIdx)
-            printf("%d %d: %.18f \n", valGIdx, i, args.getQs()[threadIdx.x]);
+            printf("%d %d: %.18f\n", valGIdx, i, args.getQs()[threadIdx.x]);
 #endif
         __syncthreads();
     }

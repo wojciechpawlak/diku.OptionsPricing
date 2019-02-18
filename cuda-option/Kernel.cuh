@@ -302,7 +302,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 
     // Backward propagation
 #ifdef DEV2
-    if (idx == PRINT_IDX) printf("%d %d: %d %d %.18f %.18f %d %.18f\n", idx, c.n, lastUsedCIdx, cashflowsRemaining, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx], lastCashflow);
+    if (idx == PRINT_IDX) printf("%d %d: %d %d %.18f %.18f %.18f %d\n", idx, c.n, lastUsedCIdx, cashflowsRemaining, lastCashflow, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
 #endif
     args.fillQs(c.width, lastCashflow); // initialize to par/face value: last repayment + last coupon
     cashflowsRemaining--;
@@ -338,19 +338,19 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 #ifdef DEV2
             if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, args.getQAt(c.jmax));
 #endif
+            cashflowsRemaining--;
             if (lastUsedCIdx > 0 && lastCStep <= c.n && cashflowsRemaining > 0)
             {
                 lastUsedCIdx--;
                 lastCStep = valuations.CashflowSteps[lastUsedCIdx];
             }
-            cashflowsRemaining--;
         }
 
         // calculate accrued interest from last cashflow
         const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV2
         if (idx == PRINT_IDX && isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0)
-            printf("%d %d: ai %f %d %d %f %d %d %f\n", idx, i, ai, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
+            printf("%d %d: ai %.18f %d %d %.18f %d %d %.18f\n", idx, i, ai, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
                 valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1] - i,
                 (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep));
 #endif

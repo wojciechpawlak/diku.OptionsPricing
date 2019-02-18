@@ -5,7 +5,7 @@
 #include "../common/Domain.hpp"
 
 #define FORWARD_GATHER
-#define PRINT_IDX 5
+#define PRINT_IDX 1 // Unsorteda
 
 using namespace trinom;
 
@@ -310,7 +310,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     // Backward propagation
 
 #ifdef DEV2
-    if (idx == PRINT_IDX) printf("%d %d: %d %d %f %f %d\n", idx, c.n, lastUsedCIdx, cashflowsRemaining, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
+    if (idx == PRINT_IDX) printf("%d %d: %d %d %.18f %.18f %.18f %d\n", idx, c.n, lastUsedCIdx, cashflowsRemaining, lastCashflow, valuations.Repayments[lastUsedCIdx], valuations.Coupons[lastUsedCIdx], valuations.CashflowSteps[lastUsedCIdx]);
 #endif
     std::fill_n(price, c.width, lastCashflow); // initialize to par/face value: last repayment + last coupon
     cashflowsRemaining--;
@@ -336,7 +336,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         {
             lastCashflow = valuations.Repayments[lastUsedCIdx] + valuations.Coupons[lastUsedCIdx];
 #ifdef DEV2
-            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax]);
+            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax], lastCashflow);
 #endif
             for (auto j = -jhigh; j <= jhigh; ++j)
             {
@@ -344,7 +344,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
                 price[jind] += lastCashflow;
             }
 #ifdef DEV2
-            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax], lastCashflow);
+            if (idx == PRINT_IDX) printf("%d %d: %d %d coupon: %.18f\n", idx, i, lastUsedCIdx, cashflowsRemaining, price[c.jmax]);
 #endif
             if (lastUsedCIdx > 0 && lastCStep <= c.n && cashflowsRemaining > 0)
             {
@@ -358,7 +358,7 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         const auto ai = isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0 ? computeAccruedInterest(i, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx]) : zero;
 #ifdef DEV2
         if (idx == PRINT_IDX && isExerciseStep && lastCStep != 0 && cashflowsRemaining > 0)
-            printf("%d %d: ai %f %d %d %f %d %d %f\n", idx, i, ai, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
+            printf("%d %d: ai %.18f %d %d %.18f %d %d %.18f\n", idx, i, ai, lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1], valuations.Coupons[lastUsedCIdx],
                 valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1] - i,
                 (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep));
 #endif
