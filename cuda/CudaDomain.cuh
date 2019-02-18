@@ -247,7 +247,7 @@ public:
             ValuationIndices = thrust::device_vector<int32_t>(ValuationCount);
             thrust::sequence(ValuationIndices.begin(), ValuationIndices.end());
 
-            auto valuationsBegin = thrust::make_zip_iterator(thrust::make_tuple(ValuationIndices.begin()));
+            auto valuationsBegin = ValuationIndices.begin();
     
             auto keysBegin = (sort == SortType::WIDTH_ASC || sort == SortType::WIDTH_DESC) 
                 ? thrust::make_zip_iterator(thrust::make_tuple(Widths.begin(), Heights.begin()))
