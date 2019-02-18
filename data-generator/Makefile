@@ -1,5 +1,5 @@
 CXX        = g++ -std=c++17 -O3  #-g 
-CXX_GTX780 = g++ -std=c++11 -O3  #-g
+CXX_GTX780 = g++ -std=c++11 -O3 -DUSE_GETOPT_ARGS #-g
 
 SOURCES_CPP =RandomDataGenerator.cpp
 EXECUTABLE  =../build/RandomDataGenerator
