@@ -6,13 +6,17 @@
 
 # program options
 rep=3
-device=$1
+device=0
 sorts="-s - -s w -s W"
 # sorts="w h"
 # block_sizes="32 64 128 256 512 1024"
 block_sizes="-b 128"
 versions="-v 1 -v 2 -v 3 -v 4"
 # versions="3 4"
+
+sorts_gtx780="- w W"
+block_sizes_gtx780="64 128"
+versions_gtx780="1 2 3 4"
 
 # data
 data_path="../data"
@@ -43,6 +47,17 @@ test() {
         for index in ${exes_to_run[*]}
         do 
             ./${exes[$index]} -o $data_path/$file.in $sorts $versions $block_sizes -r $rep -d $device | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
+        done
+    done
+}
+
+test_gtx780() {
+    echo "file,precision,registers,version,block,sort,kernel time,total time,memory"
+    for file in ${files[*]}
+    do
+        for index in ${exes_to_run[*]}
+        do 
+            ./${exes[$index]} -o $data_path/$file.in -s $sorts_gtx780 -v $versions_gtx780 -b $block_sizes_gtx780 -r $rep -d $device | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
         done
     done
 }
@@ -81,6 +96,8 @@ if [ "$1" = "compile" ]; then
     compile
 elif [ "$1" = "compile_gtx780" ]; then
     compile_gtx780
+elif [ "$1" = "test_gtx780" ]; then
+    test_gtx780
 else
     test
 fi
