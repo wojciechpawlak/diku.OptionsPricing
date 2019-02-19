@@ -55,7 +55,7 @@ test_gtx780() {
     do
         for index in ${exes_to_run[*]}
         do 
-            ./${exes[$index]} -o $data_path/$file.in -s $sorts-v  $versions -b $block_sizes -r $rep -d $device | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
+            ./${exes[$index]} -o $data_path/$file.in -s $sorts_gtx780 -v  $versions_gtx780 -b $block_sizes_gtx780 -r $rep -d $device | awk -v prefix="$file,${exes_names[$index]}," '{print prefix $0}'
         done
     done
 }
