@@ -1,0 +1,25 @@
+file,precision,registers,version,block,sort,kernel time,total time,memory
+0_UNIFORM_1_CALL_PUT_EU_Berm_US_oas,float,-,-,-,-,-,4524,-
+0_UNIFORM_1_CALL_PUT_EU_Berm_US_oas,double,-,-,-,-,-,4534,-
+0_UNIFORM_10000,float,-,-,-,-,-,53504,-
+0_UNIFORM_10000,double,-,-,-,-,-,38062,-
+0_UNIFORM_100000,float,-,-,-,-,-,400132,-
+0_UNIFORM_100000,double,-,-,-,-,-,350215,-
+0_UNIFORM_100000_zero_EU,float,-,-,-,-,-,364115,-
+0_UNIFORM_100000_zero_EU,double,-,-,-,-,-,353756,-
+0_UNIFORM_65536,float,-,-,-,-,-,248865,-
+0_UNIFORM_65536,double,-,-,-,-,-,234701,-
+1_RAND_100000,float,-,-,-,-,-,14026948,-
+1_RAND_100000,double,-,-,-,-,-,9878010,-
+1_RAND_100000_zero_EU,float,-,-,-,-,-,17759986,-
+1_RAND_100000_zero_EU,double,-,-,-,-,-,10752674,-
+1_RAND_65536,float,-,-,-,-,-,9189972,-
+1_RAND_65536,double,-,-,-,-,-,6507651,-
+2_RANDCONSTHEIGHT_100000,float,-,-,-,-,-,1071790,-
+2_RANDCONSTHEIGHT_100000,double,-,-,-,-,-,708334,-
+4_SKEWED_1_100000,float,-,-,-,-,-,1443467,-
+4_SKEWED_1_100000,double,-,-,-,-,-,1067578,-
+4_SKEWED_1_100000_zero_EU,float,-,-,-,-,-,1786966,-
+4_SKEWED_1_100000_zero_EU,double,-,-,-,-,-,1087718,-
+4_SKEWED_1_65536,float,-,-,-,-,-,1000532,-
+4_SKEWED_1_65536,double,-,-,-,-,-,730328,-
