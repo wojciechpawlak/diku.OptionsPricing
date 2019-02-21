@@ -3,6 +3,7 @@
 
 #include "../cuda/CudaDomain.cuh"
 
+//#define PRECOMPUTE
 #define DEFAULT_BLOCK_SIZE 256
 
 using namespace trinom;
@@ -137,6 +138,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 
     // --------------------------------------------------
 
+#ifdef PRECOMPUTE
     // Precompute exponent of rates for each node on the width on the tree (constant over forward propagation)
     for (auto j = -c.jmax; j <= c.jmax; ++j)
     {
@@ -161,6 +163,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
 #ifdef DEV0
     if (idx == PRINT_IDX) printf("%d: %d: %.18f %.18f %.18f %.18f\n", idx, c.width - 1, args.getRateAt(c.width - 1), args.getPAt(c.width - 1, 1), args.getPAt(c.width - 1, 2), args.getPAt(c.width - 1, 3));
 #endif
+#endif
 
     // Forward propagation
     args.setQAt(c.jmax, one); // Initialize the root of the tree
@@ -183,6 +186,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
     }
 #endif
 
+#ifdef PRECOMPUTE
     for (auto i = 1; i <= c.n; ++i)
     {
         const auto jhigh = min(i, c.jmax);
@@ -299,6 +303,121 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
         }
 #endif
     }
+#else
+
+    for (auto i = 1; i <= c.n; ++i)
+    {
+        const auto jhigh = min(i, c.jmax);
+
+        // Precompute Qexp
+        const auto expmAlphadt = args.getAlphaAt(i - 1);
+        for (auto j = -jhigh; j <= jhigh; ++j)
+        {
+            const auto jind = j + c.jmax;      // array index for j
+            real Qexp = args.getQAt(jind) * expmAlphadt * exp(c.mdrdt*j);
+            args.setQAt(jind, Qexp);
+        }
+
+        // Forward iteration step, compute Qs in the next time step
+        real aggregatedQs = zero;
+        for (auto j = -jhigh; j <= jhigh; ++j)
+        {
+            const auto jind = j + c.jmax;      // array index for j            
+
+            const auto expp1 = j == jhigh ? zero : args.getQAt(jind + 1);
+            const auto expm = args.getQAt(jind);
+            const auto expm1 = j == -jhigh ? zero : args.getQAt(jind - 1);
+            real Q;
+
+            if (i == 1) {
+                if (j == -jhigh) {
+                    Q = computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+                }
+                else if (j == jhigh) {
+                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1;
+                }
+                else {
+                    Q = computeJValue(j, c.jmax, c.M, 2) * expm;
+                }
+            }
+            else if (i <= c.jmax) {
+                if (j == -jhigh) {
+                    Q = computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+                }
+                else if (j == -jhigh + 1) {
+                    Q = computeJValue(j, c.jmax, c.M, 2) * expm +
+                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+                }
+                else if (j == jhigh) {
+                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1;
+                }
+                else if (j == jhigh - 1) {
+                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
+                        computeJValue(j, c.jmax, c.M, 2) * expm;
+                }
+                else {
+                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
+                        computeJValue(j, c.jmax, c.M, 2) * expm +
+                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+                }
+            }
+            else {
+                if (j == -jhigh) {
+                    Q = computeJValue(j, c.jmax, c.M, 3) * expm +
+                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+                }
+                else if (j == -jhigh + 1) {
+                    Q = computeJValue(j - 1, c.jmax, c.M, 2) * expm1 +
+                        computeJValue(j, c.jmax, c.M, 2) * expm +
+                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1;
+
+                }
+                else if (j == jhigh) {
+                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
+                        computeJValue(j, c.jmax, c.M, 1) * expm;
+                }
+                else if (j == jhigh - 1) {
+                    Q = computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
+                        computeJValue(j, c.jmax, c.M, 2) * expm +
+                        computeJValue(j + 1, c.jmax, c.M, 2) * expp1;
+
+                }
+                else {
+                    Q = ((j == -jhigh + 2) ? computeJValue(j - 2, c.jmax, c.M, 1) * args.getQAt(jind - 2) : zero) +
+                        computeJValue(j - 1, c.jmax, c.M, 1) * expm1 +
+                        computeJValue(j, c.jmax, c.M, 2) * expm +
+                        computeJValue(j + 1, c.jmax, c.M, 3) * expp1 +
+                        ((j == jhigh - 2) ? computeJValue(j + 2, c.jmax, c.M, 3) * args.getQAt(jind + 2) : zero);
+                }
+            }
+            // Determine the new alpha using equation 30.22
+            // by summing up Qs from the next time step
+            args.setQCopyAt(jind, Q);
+            aggregatedQs += Q * exp(j * c.mdrdt);
+        }
+
+        alpha = computeAlpha(aggregatedQs, i - 1, c.dt, c.termUnit, c.firstYieldCurveRate, c.firstYieldCurveTimeStep, c.yieldCurveTermCount, &lastUsedYCTermIdx);
+        args.setAlphaAt(i, exp(-alpha * c.dt));
+#ifdef DEV1
+        if (idx == PRINT_IDX) printf("%d %d: %.18f %.18f %.18f %d\n", idx, i, aggregatedQs, alpha, args.getAlphaAt(i), lastUsedYCTermIdx);
+#endif
+
+        // Switch Qs
+        args.switchQs();
+
+#ifdef DEV1
+        if (idx == PRINT_IDX && i > PRINT_FIRST_ITER && i < PRINT_LAST_ITER)
+        {
+            printf("%d %d: ", idx, i);
+            for (auto k = 0; k < c.width; ++k)
+            {
+                printf("%d: %.18f ", k, args.getQAt(k));
+            }
+            printf("\n");
+        }
+#endif
+    }
+#endif
 
     // Backward propagation
 #ifdef DEV2
@@ -354,7 +473,7 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
                 valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep, valuations.CashflowSteps[lastUsedCIdx + 1] - i,
                 (real)(valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep - valuations.CashflowSteps[lastUsedCIdx + 1] - i) / (valuations.CashflowSteps[lastUsedCIdx + 1] - lastCStep));
 #endif
-
+#ifdef PRECOMPUTE
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j
@@ -389,6 +508,42 @@ __global__ void kernelOneOptionPerThread(const KernelValuations valuations, Kern
             // after obtaining the result from (i+1) nodes, set the call for ith node
             args.setQCopyAt(jind, getOptionPayoff(isExerciseStep, c.X, c.type, currentStepPrice, ai));
         }
+#else
+        for (auto j = -jhigh; j <= jhigh; ++j)
+        {
+            const auto jind = j + c.jmax;      // array index for j
+            const auto discFactor = expmAlphadt * exp(j * c.mdrdt) * c.expmOasdt;
+
+            real currentStepPrice;
+            if (j == c.jmax)
+            {
+                // Top edge branching
+                currentStepPrice = (computeJValue(j, c.jmax, c.M, 1) * args.getQAt(jind) +
+                    computeJValue(j, c.jmax, c.M, 2) * args.getQAt(jind - 1) +
+                    computeJValue(j, c.jmax, c.M, 3) * args.getQAt(jind - 2)) *
+                    discFactor;
+            }
+            else if (j == -c.jmax)
+            {
+                // Bottom edge branching
+                currentStepPrice = (computeJValue(j, c.jmax, c.M, 1) * args.getQAt(jind + 2) +
+                    computeJValue(j, c.jmax, c.M, 2) * args.getQAt(jind + 1) +
+                    computeJValue(j, c.jmax, c.M, 3) * args.getQAt(jind)) *
+                    discFactor;
+            }
+            else
+            {
+                // Standard branching
+                currentStepPrice = (computeJValue(j, c.jmax, c.M, 1) * args.getQAt(jind + 1) +
+                    computeJValue(j, c.jmax, c.M, 2) * args.getQAt(jind) +
+                    computeJValue(j, c.jmax, c.M, 3) * args.getQAt(jind - 1)) *
+                    discFactor;
+            }
+
+            // after obtaining the result from (i+1) nodes, set the call for ith node
+            args.setQCopyAt(jind, getOptionPayoff(isExerciseStep, c.X, c.type, currentStepPrice, ai));
+        }
+#endif
 
         // Switch Qs
         args.switchQs();
