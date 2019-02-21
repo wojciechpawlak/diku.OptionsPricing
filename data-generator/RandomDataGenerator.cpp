@@ -222,7 +222,7 @@ public:
         while (currentNumOptions < totalValuations)
         {
             real reversionRate = getRRByWidthRange(7, 511);
-            RandValuation val(9, 12, reversionRate, randYieldCurves.size(), false, noCashflows, onlyEuropean);
+            RandValuation val(252, 12, reversionRate, randYieldCurves.size(), false, noCashflows, onlyEuropean);
             addValuation(val, currentNumOptions);
         }
 
