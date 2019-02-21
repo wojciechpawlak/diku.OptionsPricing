@@ -193,7 +193,7 @@ public:
 
         while (currentNumOptions < totalValuations)
         {
-            RandValuation val(9, 12, 0.1, randYieldCurves.size(), false, noCashflows, onlyEuropean);
+            RandValuation val(50, 12, 0.01754, randYieldCurves.size(), false, noCashflows, onlyEuropean);
             addValuation(val, currentNumOptions);
         }
 
@@ -222,7 +222,7 @@ public:
         while (currentNumOptions < totalValuations)
         {
             real reversionRate = getRRByWidthRange(7, 511);
-            RandValuation val(252, 12, reversionRate, randYieldCurves.size(), false, noCashflows, onlyEuropean);
+            RandValuation val(50, 12, reversionRate, randYieldCurves.size(), false, noCashflows, onlyEuropean);
             addValuation(val, currentNumOptions);
         }
 
@@ -236,7 +236,7 @@ public:
         while (currentNumOptions < totalValuations)
         {
             int maturity = randIntInRange(1, 100);
-            RandValuation val(maturity, 12, 0.1, randYieldCurves.size(), false, noCashflows, onlyEuropean);
+            RandValuation val(maturity, 12, 0.01754, randYieldCurves.size(), false, noCashflows, onlyEuropean);
             addValuation(val, currentNumOptions);
         }
 
