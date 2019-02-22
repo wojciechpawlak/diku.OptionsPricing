@@ -3,7 +3,10 @@
 
 #include <chrono>
 
+#include <cuda_runtime_api.h>
+
 #include <thrust/device_vector.h>
+#include <thrust/extrema.h>
 #include <thrust/transform_scan.h>
 
 #include "../common/Valuations.hpp"

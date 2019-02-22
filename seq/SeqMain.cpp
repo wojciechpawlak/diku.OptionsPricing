@@ -1,8 +1,8 @@
-#include <algorithm>
 #include <chrono>
 #include <limits>
-#include <numeric>
 
+// Use thrust::exclusive_scan, because stl::exclusive_scan is C++17
+// At least gcc 8.1.0 is needed to compile C++17 under Linux
 #include <thrust/scan.h>
 
 #include "../common/Args.hpp"

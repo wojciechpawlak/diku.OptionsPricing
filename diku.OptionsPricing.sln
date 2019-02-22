@@ -23,6 +23,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Common", "common\Common.vcxproj", "{C84AF9AD-16AC-45D8-8998-0359A876DCD2}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cuda", "cuda\Cuda.vcxproj", "{BE43D7D2-D1F5-451D-A507-203E6918EC86}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C84AF9AD-16AC-45D8-8998-0359A876DCD2} = {C84AF9AD-16AC-45D8-8998-0359A876DCD2}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CudaMulti", "cuda-multi\CudaMulti.vcxproj", "{04BEE480-4EFB-432A-9D64-AC7262101BF7}"
 	ProjectSection(ProjectDependencies) = postProject
