@@ -19,3 +19,5 @@
 
 ./build/RandomDataGenerator -t 4 -n 100000 -p ./data/ -s 1
 ./build/RandomDataGenerator -t 4 -n 100000 -p ./data/ -s 1 --inverseSkewed
+./build/RandomDataGenerator -t 4 -n 100000 -p ./data/ -s 5
+./build/RandomDataGenerator -t 4 -n 100000 -p ./data/ -s 5 --inverseSkewed
