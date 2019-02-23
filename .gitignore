@@ -591,15 +591,7 @@ build
 data/wmp
 .Rhistory
 *.Rproj
-results2
 *.nvact
-data2
 *.json
 /futhark/*.c
 /futhark/*.exe
-/results_v100_old
-send_scp_scripts.sh
-send_scp.sh
-send_scp_binaries.sh
-/results_gtx780
-/data_test
