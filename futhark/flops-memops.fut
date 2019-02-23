@@ -93,16 +93,16 @@ let mopsPerOption (single: bool) (w: i64) (h: i64) : i64 =
 --  let computeCall = h * ( 2*simple + w*bwdHelper )
 --  in  header + computeQ + computeCall
 
-let fopsPerOption (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
-  let simple = simpleFops  single hwd
-  let special= specialFops single hwd
-  let header      = 20 * simple + 2*special -- 2 adds, 4 subs, 4 divs, 10 muls, 2 exps
-  let getYield    = 4  * simple -- 1 add, 1 sub, 1 mul, 1 div
-  let fwdHelper   = 52 * simple
-  let bwdHelper   = 47 * simple + special
-  let computeQ    = h * ( w*(12*simple + 2*special + fwdHelper) + getYield + 7*simple +2*special )
-  let computeCall = h * ( 2*simple + w*bwdHelper )
-  in  header + computeQ + computeCall
+--let fopsPerOption (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
+--  let simple = simpleFops  single hwd
+--  let special= specialFops single hwd
+--  let header      = 20 * simple + 2*special -- 2 adds, 4 subs, 4 divs, 10 muls, 2 exps
+--  let getYield    = 4  * simple -- 1 add, 1 sub, 1 mul, 1 div
+--  let fwdHelper   = 52 * simple
+--  let bwdHelper   = 47 * simple + special
+--  let computeQ    = h * ( w*(12*simple + 2*special + fwdHelper) + getYield + 7*simple +2*special )
+--  let computeCall = h * ( 2*simple + w*bwdHelper )
+--  in  header + computeQ + computeCall
 
 let fopsPerOption_gpuflat (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
   let simple        = simpleFops  single hwd
@@ -200,7 +200,8 @@ let main [q] [y]
     let mops_single = map2 (mopsPerOption true ) ws hs |> reduce (+) 0i64
     let mops_double = map2 (mopsPerOption false) ws hs |> reduce (+) 0i64
 
-    in  ( fops_single_v100_gpuouter, fops_double_v100_gpuouter, fops_single_v100_gpuflat, fops_double_v100_gpuflat
+--    in  ( fops_single_v100_gpuouter, fops_double_v100_gpuouter, fops_single_v100_gpuflat, fops_double_v100_gpuflat
 --        , fops_single_gtx780_gpuouter, fops_double_gtx780_gpuouter, fops_single_gtx780_gpuflat, fops_double_gtx780_gpuflat
-        , mops_single, mops_double
-        )
+--        , mops_single, mops_double
+--       )
+    in  ( fops_single_v100_gpuouter, fops_double_v100_gpuouter )
