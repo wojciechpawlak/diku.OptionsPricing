@@ -229,8 +229,11 @@ public:
         distributeYieldCurves();
     }
 
-    void distribute_0_UNIFORM(const int constMaturity, const int constMeanReversionRate)
+    void distribute_0_UNIFORM(const int constHeight, const int constWidth)
     {
+        const auto constMaturity = (real)constHeight / (termUnitsInYearCount * timeStep);
+        const auto constMeanReversionRate = getWidthsFromTable(constWidth);
+        
         long currentNumOptions = 0;
 
         while (currentNumOptions < totalValuations)
