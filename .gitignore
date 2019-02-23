@@ -595,3 +595,4 @@ data/wmp
 *.json
 /futhark/*.c
 /futhark/*.exe
+/results_v100_old
