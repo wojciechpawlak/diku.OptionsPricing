@@ -66,7 +66,7 @@ let specialFops (single: bool) (hwd: i64) : i64 =
   (simpleFops single hwd) *
   if hwd == 1
   then 1 -- v100   Compute 6
-  else 1 -- GTX690 Compute 3.5
+  else 1 -- gtx780 Compute 3.5
 
 -- Calculate global device memory accesses
 let mopsPerOption (single: bool) (w: i64) (h: i64) : i64 =
@@ -93,18 +93,18 @@ let mopsPerOption (single: bool) (w: i64) (h: i64) : i64 =
 --  let computeCall = h * ( 2*simple + w*bwdHelper )
 --  in  header + computeQ + computeCall
 
---let fopsPerOption (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
---  let simple = simpleFops  single hwd
---  let special= specialFops single hwd
---  let header      = 20 * simple + 2*special -- 2 adds, 4 subs, 4 divs, 10 muls, 2 exps
---  let getYield    = 4  * simple -- 1 add, 1 sub, 1 mul, 1 div
---  let fwdHelper   = 52 * simple
---  let bwdHelper   = 47 * simple + special
---  let computeQ    = h * ( w*(12*simple + 2*special + fwdHelper) + getYield + 7*simple +2*special )
---  let computeCall = h * ( 2*simple + w*bwdHelper )
---  in  header + computeQ + computeCall
-
 let fopsPerOption (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
+  let simple = simpleFops  single hwd
+  let special= specialFops single hwd
+  let header      = 20 * simple + 2*special -- 2 adds, 4 subs, 4 divs, 10 muls, 2 exps
+  let getYield    = 4  * simple -- 1 add, 1 sub, 1 mul, 1 div
+  let fwdHelper   = 52 * simple
+  let bwdHelper   = 47 * simple + special
+  let computeQ    = h * ( w*(12*simple + 2*special + fwdHelper) + getYield + 7*simple +2*special )
+  let computeCall = h * ( 2*simple + w*bwdHelper )
+  in  header + computeQ + computeCall
+
+let fopsPerOption_gpuflat (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
   let simple        = simpleFops  single hwd
   let special       = specialFops single hwd
   
@@ -130,6 +130,32 @@ let fopsPerOption (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
   
   in header + precompute + computeQ + computePrice
 
+let fopsPerOption_gpuouter (single: bool) (hwd: i64) (w: i64) (h: i64) : i64 =
+  let simple        = simpleFops  single hwd
+  let special       = specialFops single hwd
+  
+  let header        = 23 * simple + 3*special -- 2 adds, 5 subs, 5 divs, 11 muls, 3 exps
+  
+  let rates         = w * (special + 3 * simple)
+  let probs         = (w - 2) * 21 * simple + 24 + 26 
+  let precompute    = rates + probs
+  
+  let getYield      = 5  * simple -- 1 add, 1 sub, 1 mul, 1 div
+  let QExpCalc      = 2*simple
+  let QCalc         = 11*simple
+  let alphaCalc     = 7*simple +3*special + getYield
+  let computeQ      = h * (w * (QExpCalc + QCalc) + alphaCalc + precompute)
+  
+  let cashflowFreq  = 1/6
+  let exerciseFreq  = 1/12
+  let cashflowCalc  = cashflowFreq * 3 * simple
+  let exerciseCalc  = exerciseFreq * 3 * simple
+  let bondPriceCalc = 8 * simple
+  let payoffCalc    = exerciseFreq * 1 * simple
+  let computePrice  = h * w * (cashflowCalc + exerciseCalc + payoffCalc) + h * precompute
+  
+  in header + computeQ + computePrice
+
 let main [q] [y] 
     (termunits          : [q]u16 ) 
     (termstepcounts     : [q]u16 ) 
@@ -150,7 +176,7 @@ let main [q] [y]
     (ycterms            : [q]u16) 
     (ycrates            : [y]real)
     (yctimesteps        : [y]i32)
-  : (i64, i64, i64, i64, i64, i64) =
+    =
     let options = map8 (\s m l u c r v t -> {StrikePrice=s, Maturity=m, Exercise=l, TermUnit=u, TermStepCount=c,
                                         ReversionRateParameter=r, VolatilityParameter=v, OptionType=t }
                 ) strikes maturities lastexercisesteps termunits termstepcounts rrps vols types
@@ -160,17 +186,21 @@ let main [q] [y]
     let hs = map (i64.i32) hs0
     
     -- hwd == 1 => V100
-    let fops_single_v100 = map2 (fopsPerOption true  1) ws hs |> reduce (+) 0i64
-    let fops_double_v100 = map2 (fopsPerOption false 1) ws hs |> reduce (+) 0i64
+    let fops_single_v100_gpuouter = map2 (fopsPerOption_gpuouter true  1) ws hs |> reduce (+) 0i64
+    let fops_double_v100_gpuouter = map2 (fopsPerOption_gpuouter false 1) ws hs |> reduce (+) 0i64
+    let fops_single_v100_gpuflat = map2 (fopsPerOption_gpuflat true  1) ws hs |> reduce (+) 0i64
+    let fops_double_v100_gpuflat = map2 (fopsPerOption_gpuflat false 1) ws hs |> reduce (+) 0i64
 
-    -- hwd == 2 => GTX690 (or anything different than 1)
-    let fops_single_gtx690 = map2 (fopsPerOption true  2) ws hs |> reduce (+) 0i64
-    let fops_double_gtx690 = map2 (fopsPerOption false 2) ws hs |> reduce (+) 0i64
+    -- hwd == 2 => gtx780 (or anything different than 1)
+--    let fops_single_gtx780_gpuouter = map2 (fopsPerOption_gpuouter true  2) ws hs |> reduce (+) 0i64
+--    let fops_double_gtx780_gpuouter = map2 (fopsPerOption_gpuouter false 2) ws hs |> reduce (+) 0i64
+--    let fops_single_gtx780_gpuflat = map2 (fopsPerOption_gpuflat true  2) ws hs |> reduce (+) 0i64
+--    let fops_double_gtx780_gpuflat = map2 (fopsPerOption_gpuflat false 2) ws hs |> reduce (+) 0i64
 
     let mops_single = map2 (mopsPerOption true ) ws hs |> reduce (+) 0i64
     let mops_double = map2 (mopsPerOption false) ws hs |> reduce (+) 0i64
 
-    in  ( fops_single_v100, fops_double_v100
-        , fops_single_gtx690, fops_double_gtx690
+    in  ( fops_single_v100_gpuouter, fops_double_v100_gpuouter, fops_single_v100_gpuflat, fops_double_v100_gpuflat
+--        , fops_single_gtx780_gpuouter, fops_double_gtx780_gpuouter, fops_single_gtx780_gpuflat, fops_double_gtx780_gpuflat
         , mops_single, mops_double
         )
