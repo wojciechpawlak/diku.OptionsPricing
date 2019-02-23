@@ -27,11 +27,14 @@ delimeter = ','
 precision_dict = {'float': 'Single', 'double': 'Double'}
 tech_dict = {'principiac': 'SCD Prod', 'seqc': 'Sequential C', 'openmp': 'OpenMP', 'cuda': 'CUDA', 'opencl': 'OpenCL', 'futhark-c': 'Futhark-C', 'futhark-opencl': 'Futhark-OpenCL'}
 platform_dict = {'intel': 'CPU', 'v100': 'V100', 'p100': 'P100', 'gtx780': 'GTX780'}
-device_dict = {'v100': 'V100', 'p100': 'P100', 'gtx780': 'GTX780'}
-version_dict = {'cuda-option': 'gpu-outer', 'cuda-multi': 'gpu-flat'}
+cpu_dict = {'52core': '52core', '32core': '32core'}
+# device_dict = {'v100': 'V100', 'p100': 'P100', 'gtx780': 'GTX780'}
+device_dict = {'v100': 'V100', 'gtx780': 'GTX780'}
+version_dict = {'cuda-option': 'gpu-outer', 'cuda-multi': 'gpu-flat', 'cpu': 'cpu-mt+vect'}
 kernel_dict = {1: 'NOOPT', 2: 'PAD_GLOBAL', 3: 'PAD_TB', 4: 'PAD_WARP'}
 sort_dict = {'-': 'No sort', 'H': 'Height desc', 'h': 'Height asc', 'W': 'Width desc', 'w': 'Width asc'}
 optimization_dict = {'': 'All optimizations', 'NOOPT': 'w/o coalescing', 'PAD_GLOBAL': 'w/o TB padding', 'No sort': 'w/o reordering'}
+dataset_dict = {'0_UNIFORM_1000': 'U1', '0_UNIFORM_100000': 'U2', '1_RAND_100000': 'R1', '2_RANDCONSTHEIGHT_100000': 'R2', '4_SKEWED_1_100000': 'S1', '4_SKEWED_5_100000': 'S2'}
 
 # FLOPs
 # futhark flops-memops.fut script
@@ -50,20 +53,44 @@ optimization_dict = {'': 'All optimizations', 'NOOPT': 'w/o coalescing', 'PAD_GL
 # flops_OptT_double = [264422436545,22444351687]
 # flops_OptsTB_double = [269739960791,23253035475]
 
-# 1_RAND_65536, 2_RANDCONSTHEIGHT_100000, 4_SKEWED_1_65536
-flops_OptT_double = [219479550906,60175044966,22364761110]
+# futhark flops-memops.fut script
+flops_OptT_double = {   
+    '0_UNIFORM_1000':           9789626000,
+    '0_UNIFORM_100000':         978962600000,
+    '1_RAND_100000':            1005240770576,
+    '2_RANDCONSTHEIGHT_100000': 996527352800,
+    '4_SKEWED_1_100000':        101550367280,
+    '4_SKEWED_5_100000':        218281602464
+}
 flops_OptsTB_double = flops_OptT_double
 
 # 1_RAND_100000, 4_SKEWED_1_100000
 # flops_OptT_double = [264062072453,28486850361]
 # flops_OptsTB_double = [393584980737,34581179352]
 
-flops_OptT_single = [int(item*0.7) for item in flops_OptT_double] # [int(flops_OptT_double[0]*0.7),int(flops_OptT_double[1]*0.7),int(flops_OptT_double[1]*0.7)]
-flops_OptsTB_single = [int(item*0.7) for item in flops_OptT_double] # [int(flops_OptsTB_double[0]*0.7),int(flops_OptsTB_double[1]*0.7)]
+flops_OptT_single = {k: int(v*0.7) for k, v in flops_OptT_double.items()} # [int(flops_OptT_double[0]*0.7),int(flops_OptT_double[1]*0.7),int(flops_OptT_double[1]*0.7)]
+flops_OptsTB_single = {k: int(v*0.7) for k, v in flops_OptT_double.items()} # [int(flops_OptsTB_double[0]*0.7),int(flops_OptsTB_double[1]*0.7)]
 
 # Memory Accesses
 mem_accesses = [2738946048,417930000,82836705060,12709138884,8083858200,1243743444]
 # double_mem_access = [5477892096,835860000,165673410120,25418277768,16167716400,2487486888]
+# 125066900000i64
+# 250133800000i64
+# PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\0_UNIFORM_1000.in | .\flops-memops.exe
+# 1250669000i64
+# 2501338000i64
+# PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\1_RAND_100000.in | .\flops-memops.exe
+# 128411760092i64
+# 256823520184i64
+# PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\2_RANDCONSTHEIGHT_100000.in | .\flops-memops.exe
+# 22841348000i64
+# 45682696000i64
+# PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\4_SKEWED_1_100000.in | .\flops-memops.exe
+# 13137486512i64
+# 26274973024i64
+# PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\4_SKEWED_5_100000.in | .\flops-memops.exe
+# 28002818612i64
+# 56005637224i64
 
 def autolabel(ax, rects, xpos='center', ypos=0, ypos_limit=0, rot=0):
     """
@@ -170,72 +197,6 @@ def gather_gpu_results(filename, input_path, datasets, limited_datasets_count, d
                         break
     return results_dict
 
-def gather_gpu_results_devices(filename, input_path, datasets, limited_datasets_count, device_results_filenames):
-    results_dict = dict()
-    for filename in device_results_filenames:
-        with open(input_path + filename) as f:
-            lines = f.readlines()
-            # you may also want to remove whitespace characters like `\n` at the end of each line
-            # lines = [x.strip().split(' ') for x in [ line for line in lines 
-                # if '2018-'in line and not 'Expected' in line and not 'getLastCudaError()' in line]]
-            lines = [x.strip().split(delimeter) for x in [ line for line in lines 
-                if not 'file' in line and not 'terminate' in line and not 'what()' in line]]
-
-            (device, version) = splitext(basename(filename))[0].split('_')
-
-            kernels = set()
-            # get kernels existing in results file
-            for line in lines:
-                kernelVersion = 0
-                try:
-                    kernelVersion = int(line[3])
-                except ValueError:
-                    continue
-                key_str = version_dict.get(version) + ' ' + kernel_dict.get(kernelVersion) + ' ' + sort_dict.get(line[5]) + ' ' + line[4] + ' ' + precision_dict.get(line[1])
-                kernels.add((key_str, kernelVersion, line[5], int(line[4]), line[1], device, version))
-                if not limited_datasets_count > 0: # and exists(line[10]):
-                    dataset = splitext(basename(line[10]))[0]
-                    datasets.add(dataset)
-
-            kernels_list = list(kernels)
-            kernels_list.sort(key=itemgetter(4,1,2,3))
-
-            datasets = sorted(datasets)
-            datasets_count = len(datasets)
-            timings = [[sys.maxsize,sys.maxsize]] * datasets_count
-            datesets_iter = iter(datasets)
-
-            # assign result per dataset to each of kernels
-            results_dict.update(dict((kernel[0], timings.copy()) for kernel in kernels))
-            for line in lines:
-                for key in kernels_list:
-                    if key[1] == int(line[3]) and key[2] == line[5] and key[3] == int(line[4]) and key[4] == line[1] and key[5] == device and key[6] == version: # kernel, sort, blocksize, precision match
-                        # print(version + ' ' + device + ' ' + str(line) + ' ' + key[0])
-                        timing = 0
-                        memsize = 0
-                        try:
-                            timing = int(line[7]) # total time
-                            memsize = int(line[8]) # total time
-                        except ValueError:
-                            timing = 0
-                            memsize = 0
-                        # if exists(line[10]):
-                        # dataset = splitext(basename(line[10]))[0]
-                        dataset = line[0]
-                        index = 0
-                        for index_dataset in datasets:
-                            if dataset == index_dataset:
-                                results_dict[key[0]][index] = (timing, memsize)
-                                # if len(results_dict[key[0]][index]) == 0:
-                                #     results_dict[key[0]][index] = [(timing, memsize)]
-                                # else:
-                                #     results_dict[key[0]][index].append((timing, memsize))
-                                break
-                            else:
-                                index += 1
-                        break
-    return results_dict
-
 def gather_cpu_results(cpu_results_path, limited_datasets):
     # get CPU results as a reference baseline for speedups
     # double_cpu_results = [432, 80, 9828, 1668, 720, 115, 2180, 409, 1195, 205, 968, 162, 854, 151]
@@ -258,25 +219,34 @@ def gather_cpu_results(cpu_results_path, limited_datasets):
                     double_cpu_results.append(int(line[2]))
             if line[0] in limited_datasets:
                 if line[1] == 'float':
-                    single_cpu_results.append(int(line[7])/1000)
+                    single_cpu_results.append(int(line[7]))
                 elif line[1] == 'double':
-                    double_cpu_results.append(int(line[7])/1000)
+                    double_cpu_results.append(int(line[7]))
     return (single_cpu_results, double_cpu_results)
-
 class Plotter:
+    args = ''
     results_dict = []
+    datasets = []
     datasets_count = -1
+    output_path = ''
 
-    offset = [-1, 0, 1]
-    width = 0.3  # the width of the bars
+    # offset = [-1, 0, 1]
+    # width = 0.3  # the width of the bars
 
-    colors = ['SkyBlue', 'IndianRed', 'Green', 'Orange']
-    offset = [-1.5, -0.5, 0.5, 1.5]
-    width = 0.225  # the width of the bars
+    # colors = ['DarkBlue', 'SlateBlue', 'Orchid', 'PaleVioletRed', 'Orange']
+    # colors = ['SkyBlue', 'IndianRed', 'Green', 'Orange']
+    colors = ['#fd4445', '#ffaf00', '#0091cf', '#01395e']
+    offsets = [-1, 0, 1]
+    # offsets = [-2, -1, 0, 1, 2]
+    # offset = [-1.5, -0.5, 0.5, 1.5]
+    width = 0.2  # the width of the bars
 
-    def __init__(self, results_dict, datasets_count):
+    def __init__(self, args, results_dict, datasets, datasets_count, output_path):
+        self.args = args
         self.results_dict = results_dict
+        self.datasets = datasets
         self.datasets_count = datasets_count
+        self.output_path = output_path
 
     def plot0(self):
         for precision in precision_dict.values():
@@ -526,7 +496,131 @@ class Plotter:
                 output_path = output_path_dir + '\\figures\\'  + args.output_filename +'_' + datasets[dataset_index] + '.' + args.figure_format
                 fig.savefig(output_path, format=args.figure_format, dpi=1200, bbox_inches='tight')
 
-    def plot3(self, devices, precision, blocksize_outer, blocksize_flat, sort_order):
+    def plot3(self, devices, precisions, blocksize_outer, blocksize_flat, sort_order):
+        results_items = self.results_dict.items()
+        filtered_results_dict = {
+            k: v for (k, v) in results_items 
+                if  
+                    # any(p in k for p in precisions) 
+                    (blocksize_outer in k or blocksize_flat in k) 
+                    and any(d in k for d in devices)
+                    # and devices in k
+                    and any(s in k for s in sort_order)
+                    # and sort_order in k
+            }
+        filtered_results_ordered_dict = collections.OrderedDict(sorted(filtered_results_dict.items()))
+
+        kernel1_gflops_table_dict = dict()
+        kernel2_gflops_table_dict = dict()
+        device_count =len(devices)
+
+        kernel1_highest_gflops = [0] * device_count * self.datasets_count
+        kernel2_highest_gflops = [0] * device_count * self.datasets_count
+
+        for result in filtered_results_ordered_dict.items():
+            flops = []
+
+            current_precision = precision_dict['float'] if precision_dict['float'] in result[0] else precision_dict['double']
+            current_version = version_dict['cuda-option'] if version_dict['cuda-option'] in result[0] else version_dict['cuda-multi'] 
+
+            if precision_dict['float'] == current_precision and version_dict['cuda-option'] == current_version: flops = flops_OptT_single
+            if precision_dict['float'] == current_precision and version_dict['cuda-multi'] == current_version: flops = flops_OptsTB_single
+            if precision_dict['double'] == current_precision and version_dict['cuda-option'] == current_version: flops = flops_OptT_double
+            if precision_dict['double'] == current_precision and version_dict['cuda-multi'] == current_version: flops = flops_OptsTB_double
+            
+            sort_limited_dict = sort_dict.copy()
+            del sort_limited_dict['-']
+
+            key = result[0]
+            for x in device_dict.values():
+                key = key.replace(' ' + x,'')
+            for x in precision_dict.values():
+                key = key.replace(' ' + x,'')
+            for x in sort_limited_dict.values():
+                key = key.replace(' ' + x,' Sort')
+            print_str = result[0] + ' '
+
+            column_count = (device_count + 1)
+            value = []
+            if version_dict['cuda-option'] == current_version:
+                value = [0] * column_count * len(result[1]) if key not in kernel1_gflops_table_dict else kernel1_gflops_table_dict[key]
+            elif version_dict['cuda-multi'] == current_version:
+                value = [0] * column_count * len(result[1]) if key not in kernel2_gflops_table_dict else kernel2_gflops_table_dict[key]
+            else:
+                raise Exception("Wrong version")
+
+            for dataset_index in range(self.datasets_count):
+                dataset = self.datasets[dataset_index]
+                gflops = float(flops[dataset])*(1e-9)
+                time_s = float(result[1][dataset_index][0]*(1e-6))
+                gflops_per_s = gflops/time_s
+                memsize = result[1][dataset_index][1]/(1024*1024*1024)
+                if device_dict['gtx780'] in result[0] and precision_dict['float'] in result[0]:
+                    value[1 + dataset_index*column_count] = gflops_per_s if gflops_per_s > value[1 + dataset_index*column_count] else value[1 + dataset_index*column_count]
+                    if version_dict['cuda-option'] == current_version:
+                        kernel1_highest_gflops[1 + dataset_index*device_count] = gflops_per_s if gflops_per_s > kernel1_highest_gflops[1 + dataset_index*device_count] else kernel1_highest_gflops[1 + dataset_index*device_count]
+                    elif version_dict['cuda-multi'] == current_version:
+                        kernel2_highest_gflops[1 + dataset_index*device_count] = gflops_per_s if gflops_per_s > kernel2_highest_gflops[1 + dataset_index*device_count] else kernel2_highest_gflops[1 + dataset_index*device_count]
+
+                elif device_dict['v100'] in result[0] and precision_dict['double'] in result[0]:
+                    value[0 + dataset_index*column_count] = gflops_per_s if gflops_per_s > value[0 + dataset_index*column_count] else value[0 + dataset_index*column_count]
+                    if version_dict['cuda-option'] == current_version:
+                        kernel1_highest_gflops[0 + dataset_index*device_count] = gflops_per_s if gflops_per_s > kernel1_highest_gflops[0 + dataset_index*device_count] else kernel1_highest_gflops[0 + dataset_index*device_count]
+                    elif version_dict['cuda-multi'] == current_version:
+                        kernel2_highest_gflops[0 + dataset_index*device_count] = gflops_per_s if gflops_per_s > kernel2_highest_gflops[0 + dataset_index*device_count] else kernel2_highest_gflops[0 + dataset_index*device_count]
+                else:
+                    break
+                if value[2 + dataset_index*column_count] == 0: 
+                    value[2 + dataset_index*column_count] = memsize
+                print_str += '\t' + "{0:d}".format(flops[dataset]) + ' ' + "{0:d}".format(result[1][dataset_index][0])
+
+            # print(print_str)        
+            if version_dict['cuda-option'] == current_version:
+                kernel1_gflops_table_dict[key] = value
+            elif version_dict['cuda-multi'] == current_version:
+                kernel2_gflops_table_dict[key] = value
+            else:
+                raise Exception("Wrong version")
+
+        print(kernel1_highest_gflops)
+        print(kernel2_highest_gflops)
+
+        self.make_gflops_table(kernel1_gflops_table_dict, kernel1_highest_gflops, device_count, column_count)
+        print()
+        self.make_gflops_table(kernel2_gflops_table_dict, kernel2_highest_gflops, device_count, column_count)
+
+    def make_gflops_table(self, gflops_table_dict, highest_gflops, device_count, column_count):
+        count = 0
+        for result in gflops_table_dict.items():
+            kernel = ''
+
+            for k,v in kernel_dict.items():
+                if v in result[0]:
+                    kernel = str(k)
+
+            sort = 'ws' if 'Sort' in result[0] else 'ns'
+
+            # print_str = result[0] + '\t'
+            print_str = '$ V_{{{0}}}^{{{1}}} $'.format(kernel, sort)
+
+            value = result[1]
+            for dataset_index in range(self.datasets_count):
+                # print_str += ' & ' + "{0:0.0f}".format(value[0 + dataset_index*3]) + ' & ' + "{0:0.0f}".format(value[1 + dataset_index*3]) + ' & ' + "{0:0.2f}".format(value[2 + dataset_index*3])
+                device1_best_value = highest_gflops[0 + dataset_index*device_count]
+                device2_best_value = highest_gflops[1 + dataset_index*device_count]
+                device1_value = value[0 + dataset_index*column_count]
+                device2_value = value[1 + dataset_index*column_count]
+                device1_str = "\color[HTML]{{FE0000}} \\textbf{{{0:0.0f}}}".format(device1_value) if device1_value == device1_best_value else "{0:0.0f}".format(device1_value)
+                device2_str = "\color[HTML]{{FE0000}} \\textbf{{{0:0.0f}}}".format(device2_value) if device2_value == device2_best_value else "{0:0.0f}".format(device2_value)
+
+                print_str += ' & ' + device1_str + ' & ' + device2_str + ' & ' + "{0:0.2f}".format(value[2 + dataset_index*column_count])
+            
+            midrule_str = '' if (count % 2 == 0) else ' \\midrule'
+                
+            print(print_str + ' \\\\' + midrule_str)
+            count += 1
+
+    def plot4(self, devices, precision, blocksize_outer, blocksize_flat, sort_order, single_cpu_results, double_cpu_results):
         results_items = self.results_dict.items()
         filtered_results_dict = {
             k: v for (k, v) in results_items 
@@ -542,6 +636,9 @@ class Plotter:
         gflops_table_dict = dict()
         device_count =len(devices)
 
+        highest_gflops_device1 = {d: [0.0,0.0,0.0] for d in self.datasets} # Add QuantLib here
+        highest_gflops_device2 = {d: [0.0,0.0,0.0] for d in self.datasets} # Add QuantLib here
+
         for result in filtered_results_ordered_dict.items():
             flops = []
             if precision == precision_dict['float'] and version_dict['cuda-option'] in result[0]: flops = flops_OptT_single
@@ -552,46 +649,98 @@ class Plotter:
             key = result[0]
             for x in device_dict.values():
                 key = key.replace(' ' + x,'')
-            print_str = result[0] + ' '
+            print_str = key + ' '
 
-            value = [0] * (device_count - 1 + 1) * len(result[1]) if key not in gflops_table_dict else gflops_table_dict[key]
+            column_count = (device_count + 1)
+            value = [0] * (column_count) * len(result[1]) if key not in gflops_table_dict else gflops_table_dict[key]
 
             for dataset_index in range(self.datasets_count):
-                gflops = float(flops[dataset_index])*(1e-9)
+                dataset = self.datasets[dataset_index]
+                gflops = float(flops[dataset])*(1e-9)
                 time_s = float(result[1][dataset_index][0]*(1e-6))
                 gflops_per_s = gflops/time_s
                 memsize = result[1][dataset_index][1]/(1024*1024)
                 if (device_dict['gtx780'] in result[0]):
-                    value[1 + dataset_index*3] = gflops_per_s
+                    value[1 + dataset_index*column_count] = gflops_per_s
                 elif (device_dict['v100'] in result[0]):
-                    value[0 + dataset_index*3] = gflops_per_s
+                    value[0 + dataset_index*column_count] = gflops_per_s
                 else:
                     raise Exception("Wrong device")
-                value[2 + dataset_index*3] = memsize
-                print_str += '\t' + "{0:d}".format(flops[dataset_index]) + ' ' + "{0:d}".format(result[1][dataset_index][0])
+                value[2 + dataset_index*column_count] = memsize
+                print_str += '\t' + "{0:0.0f}".format(float(flops[dataset])) + ' ' + "{0:0.0f}".format(float(result[1][dataset_index][0]))
+
+                highest_gflops = highest_gflops_device1 if device_dict['v100'] in result[0] else highest_gflops_device2
+                # 0 - cuda-option
+                # 1 - cuda-multi
+                # 2 - cpu
+                # 3 - QuantLib
+                # compare and add best result to highest gflops
+                if version_dict['cuda-option'] in key:
+                    highest_gflops[dataset][0] = gflops_per_s if gflops_per_s > highest_gflops[dataset][0] else highest_gflops[dataset][0]
+                elif version_dict['cuda-multi'] in key:
+                    highest_gflops[dataset][1] = gflops_per_s if gflops_per_s > highest_gflops[dataset][1] else highest_gflops[dataset][1]
+                else:
+                    raise Exception("Wrong version")
             print(print_str)        
             gflops_table_dict[key] = value
 
-        print()
+        cpu_results = single_cpu_results if precision == precision_dict['float'] else double_cpu_results
 
-        for result in gflops_table_dict.items():
-            kernel = ''
+        for dataset_index in range(self.datasets_count):
+            dataset = self.datasets[dataset_index]
+            result = cpu_results[dataset_index]
+            gflops = float(flops[dataset])*(1e-9)
+            time_s = float(result*(1e-6))
+            gflops_per_s = int(gflops/time_s)
+            highest_gflops_device1[dataset][2] = gflops_per_s
+            highest_gflops_device2[dataset][2] = gflops_per_s
 
-            for k,v in kernel_dict.items():
-                if v in result[0]:
-                    kernel = str(k)
+        self.make_gflops_figure(highest_gflops_device1, precision, device_dict['v100'])
+        self.make_gflops_figure(highest_gflops_device2, precision, device_dict['gtx780'])
 
-            sort = 'asc' if 'asc' in result[0] else 'desc' if 'desc' in result[0] else '-'
+    def make_gflops_figure(self, highest_gflops, precision, device):
+        runtime_fig, runtime_ax = plt.subplots()
+        runtime_rects = []
 
+        inds = np.arange(self.datasets_count)  # the x locations for the groups
 
-            # print_str = result[0] + '\t'
-            print_str = '$ V_{{{0}}}^{{{1}}} $'.format(kernel, sort)
+        runtime_ax.set_ylabel('Performance [GFLOP/s]')
+        # runtime_ax.set_title('Best performance comparison across datasets (' + precision + ' precision) on ' + device)
+        print('Best performance comparison across datasets (' + precision + ' precision) on ' + device)
+        runtime_ax.set_xticks(inds)
+        dataset_labels = [dataset_dict[d] for d in self.datasets]
+        runtime_ax.set_xticklabels(dataset_labels)
 
-            value = result[1]
+        version_count = len(version_dict.values())
+        count = 0
+        for version_index in range(version_count):
+            version = version_dict['cuda-option'] if version_index == 0 else version_dict['cuda-multi'] if version_index == 1 else version_dict['cpu'] 
+            gflops_results = []
             for dataset_index in range(self.datasets_count):
-                print_str += ' & ' + "{0:0.2f}".format(value[0 + dataset_index*3]) + ' & ' + "{0:0.2f}".format(value[1 + dataset_index*3]) + ' & ' + "{0:0.3f}".format(value[2 + dataset_index*3])
-            
-            print(print_str + ' \\\\')
+                dataset = self.datasets[dataset_index]
+                gflops_results.append(round(highest_gflops[dataset][version_index]))
+                
+            kernel_rects = runtime_ax.bar(inds + self.offsets[count]*self.width, gflops_results, self.width, color=self.colors[count], label=version)
+            runtime_rects.append(kernel_rects)
+            count = count + 1
+
+        rect_heights = []
+        for kernel_rects in runtime_rects:
+            for rect in kernel_rects:
+                rect_heights.append(rect.get_height())
+        max_rect_height = max(rect_heights)
+        
+        for kernel_rects in runtime_rects: 
+            autolabel(runtime_ax, kernel_rects, 'center', 0.25, 0.9*max_rect_height, 0)
+
+        runtime_ax.legend(loc='upper left')
+        # plt.show()
+        runtime_fig.set_size_inches(self.args.height, self.args.width)
+
+        output_path_dir = dirname(self.output_path)
+        output_path = output_path_dir + '\\figures\\' + 'gflops_' + precision + '_' + device + '.' + self.args.figure_format
+        runtime_fig.savefig(output_path, format=self.args.figure_format, dpi=1200, bbox_inches='tight')
+
 
 def main():
     parser = ArgumentParser(description='Plot barcharts for execution results.')
@@ -605,8 +754,8 @@ def main():
     parser.add_argument('--datasets', dest='datasets', nargs='+', default=' ')
     # parser.add_argument('-k', '--kernel_type', dest='kernel_type', default=' ')
     parser.add_argument('-k','--kernel_types', dest='kernel_types', nargs='+', default=' ')
-    parser.add_argument('-p', '--plots', dest='plots', nargs='+', default=[3])
-    parser.add_argument('-f', '--figure_format', dest='figure_format', default='eps')
+    parser.add_argument('-p', '--plots', dest='plots', nargs='+', default=[3,4])
+    parser.add_argument('-f', '--figure_format', dest='figure_format', default='pdf')
 
     args = parser.parse_args()
     args.plots = [int(i) for i in args.plots]
@@ -630,7 +779,7 @@ def main():
     else:
         output_path = config['Paths']['results']
 
-    cpu_results_path = config['Paths']['cpu_results']
+    cpu_results_filenames = json.loads(config['Paths']['cpu_results'])
     device_results_filenames = json.loads(config['Paths']['device_results'])
 
     # get data
@@ -656,13 +805,18 @@ def main():
     # datasets = set()
     datasets = limited_datasets if limited_datasets else set()
 
+    datasets_plot3 = datasets.copy()
+    datasets_plot3.remove("0_UNIFORM_1000")
+    datasets_plot3.remove("0_UNIFORM_100000")
+
     devices = set()
     for device in device_dict.items():
         for filename in device_results_filenames:
             if device[0] in filename:
                 devices.add(device[1])
 
-    results_dict = gather_gpu_results(filename, input_path, datasets, len(limited_datasets), device_results_filenames)
+    results_dict_plot3 = gather_gpu_results(filename, input_path, datasets_plot3, len(datasets_plot3), device_results_filenames)
+    results_dict_plot4 = gather_gpu_results(filename, input_path, datasets, len(datasets), device_results_filenames)
     # dumpclean(results_dict)
     
     # average results from many trials
@@ -670,12 +824,13 @@ def main():
         # for dataset_index in range(datasets_count):
             # timings[dataset_index] = int(np.mean(timings[dataset_index]))
 
-    single_cpu_results, double_cpu_results = gather_cpu_results(cpu_results_path, limited_datasets)
-    print(single_cpu_results)
-    print(double_cpu_results)
+    single_cpu_results_32cores, double_cpu_results_32cores = gather_cpu_results(input_path + cpu_results_filenames[0], limited_datasets)
+    single_cpu_results_52cores, double_cpu_results_52cores = gather_cpu_results(input_path + cpu_results_filenames[1], limited_datasets)
+    # print(single_cpu_results)
+    # print(double_cpu_results)
 
     # print and plot the best results and speedups in comparison to OpenMP CPU code for each dataset
-    plotter = Plotter(results_dict, len(datasets))
+    plotter = Plotter(args, results_dict_plot3, datasets_plot3, len(datasets_plot3), output_path)
     if 0 in args.plots:
         plotter.plot0()
     if 1 in args.plots:
@@ -684,10 +839,14 @@ def main():
         plotter.plot2()
     if 3 in args.plots:
         # plotter.plot3(device_dict.values(), precision_dict['double'], '128', '512', sort_dict['-'])
-        plotter.plot3(device_dict.values(), precision_dict['double'], '128', '512', sort_dict)
+        plotter.plot3(device_dict.values(), precision_dict, '128', '512', sort_dict)
         # plotter.plot3('', precision_dict['double'], '128', '512', sort_dict['-'])
         print()
-        plotter.plot3(device_dict['gtx780'], precision_dict['float'], '128', '512', sort_dict['-'])
+        # plotter.plot3(device_dict['gtx780'], precision_dict['float'], '128', '512', sort_dict['-'])
+    if 4 in args.plots:
+        plotter_plot4 = Plotter(args, results_dict_plot4, datasets, len(datasets), output_path)
+        plotter_plot4.plot4(device_dict.values(), precision_dict['double'], '128', '512', sort_dict, single_cpu_results_52cores, double_cpu_results_52cores)
+        plotter_plot4.plot4(device_dict.values(), precision_dict['float'], '128', '512', sort_dict, single_cpu_results_32cores, double_cpu_results_32cores)
 
 if __name__ == '__main__':
     main()
