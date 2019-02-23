@@ -706,7 +706,7 @@ class Plotter:
             highest_gflops_device1[dataset][2] = gflops_per_s
             highest_gflops_device2[dataset][2] = gflops_per_s
 
-        print(highest_gflops_device1)
+        #print(highest_gflops_device1)
 
         self.make_gflops_figure(highest_gflops_device1, precision, device_dict['v100'])
         self.make_gflops_figure(highest_gflops_device2, precision, device_dict['gtx780'])
