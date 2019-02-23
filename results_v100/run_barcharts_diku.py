@@ -34,7 +34,7 @@ version_dict = {'cuda-option': 'gpu-outer', 'cuda-multi': 'gpu-flat', 'cpu': 'cp
 kernel_dict = {1: 'NOOPT', 2: 'PAD_GLOBAL', 3: 'PAD_TB', 4: 'PAD_WARP'}
 sort_dict = {'-': 'No sort', 'H': 'Height desc', 'h': 'Height asc', 'W': 'Width desc', 'w': 'Width asc'}
 optimization_dict = {'': 'All optimizations', 'NOOPT': 'w/o coalescing', 'PAD_GLOBAL': 'w/o TB padding', 'No sort': 'w/o reordering'}
-dataset_dict = {'0_UNIFORM_1000': 'U1', '0_UNIFORM_100000': 'U2', '1_RAND_100000': 'R1', '2_RANDCONSTHEIGHT_100000': 'R2', '4_SKEWED_1_100000': 'S1', '4_SKEWED_5_100000': 'S2'}
+dataset_dict = {'0_UNIFORM_1000': 'U1', '0_UNIFORM_3000': 'U2', '0_UNIFORM_5000': 'U3', '0_UNIFORM_100000': 'U4', '1_RAND_100000': 'R1', '1_RAND_NORMH_100000': 'R2', '1_RAND_NORMW_100000': 'R3', '4_SKEWED_1_100000': 'S1', '4_SKEWED_INV_1_100000': 'S2'}
 
 # FLOPs
 # futhark flops-memops.fut script
@@ -55,42 +55,46 @@ dataset_dict = {'0_UNIFORM_1000': 'U1', '0_UNIFORM_100000': 'U2', '1_RAND_100000
 
 # futhark flops-memops.fut script
 flops_OptT_double = {   
-    '0_UNIFORM_1000':           9789626000,
-    '0_UNIFORM_100000':         978962600000,
-    '1_RAND_100000':            1005240770576,
-    '2_RANDCONSTHEIGHT_100000': 996527352800,
-    '4_SKEWED_1_100000':        101550367280,
-    '4_SKEWED_5_100000':        218281602464
+    '0_UNIFORM_1000': 9789626000,
+    '0_UNIFORM_3000': 29368878000,
+    '0_UNIFORM_5000':   48948130000,
+    '0_UNIFORM_100000': 978962600000,
+    '1_RAND_100000': 1007189668136,
+    '1_RAND_NORMH_100000': 1011525907312,
+    '1_RAND_NORMW_100000': 1011650780036,
+    '4_SKEWED_1_100000': 52405527544,
+    '4_SKEWED_INV_1_100000': 21913746500
 }
+
 flops_OptsTB_double = flops_OptT_double
 
 # 1_RAND_100000, 4_SKEWED_1_100000
 # flops_OptT_double = [264062072453,28486850361]
 # flops_OptsTB_double = [393584980737,34581179352]
 
-flops_OptT_single = {k: int(v*0.7) for k, v in flops_OptT_double.items()} # [int(flops_OptT_double[0]*0.7),int(flops_OptT_double[1]*0.7),int(flops_OptT_double[1]*0.7)]
-flops_OptsTB_single = {k: int(v*0.7) for k, v in flops_OptT_double.items()} # [int(flops_OptsTB_double[0]*0.7),int(flops_OptsTB_double[1]*0.7)]
+flops_OptT_single = {k: int(v*0.7) for k, v in flops_OptT_double.items()}
+flops_OptsTB_single = {k: int(v*0.7) for k, v in flops_OptT_double.items()}
 
 # Memory Accesses
 mem_accesses = [2738946048,417930000,82836705060,12709138884,8083858200,1243743444]
 # double_mem_access = [5477892096,835860000,165673410120,25418277768,16167716400,2487486888]
-# 125066900000i64
-# 250133800000i64
+# 125066900000
+# 250133800000
 # PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\0_UNIFORM_1000.in | .\flops-memops.exe
-# 1250669000i64
-# 2501338000i64
+# 1250669000
+# 2501338000
 # PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\1_RAND_100000.in | .\flops-memops.exe
-# 128411760092i64
-# 256823520184i64
+# 128411760092
+# 256823520184
 # PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\2_RANDCONSTHEIGHT_100000.in | .\flops-memops.exe
-# 22841348000i64
-# 45682696000i64
+# 22841348000
+# 45682696000
 # PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\4_SKEWED_1_100000.in | .\flops-memops.exe
-# 13137486512i64
-# 26274973024i64
+# 13137486512
+# 26274973024
 # PS C:\Work\GitHub\wojciechpawlak\diku.OptionsPricing\futhark> cat D:\data\fixed_rate\4_SKEWED_5_100000.in | .\flops-memops.exe
-# 28002818612i64
-# 56005637224i64
+# 28002818612
+# 56005637224
 
 def autolabel(ax, rects, xpos='center', ypos=0, ypos_limit=0, rot=0):
     """
@@ -140,7 +144,7 @@ def gather_gpu_results(filename, input_path, datasets, limited_datasets_count, d
             # lines = [x.strip().split(' ') for x in [ line for line in lines 
                 # if '2018-'in line and not 'Expected' in line and not 'getLastCudaError()' in line]]
             lines = [x.strip().split(delimeter) for x in [ line for line in lines 
-                if not 'file' in line and not 'terminate' in line and not 'what()' in line]]
+                if line.strip() and not 'file' in line and not 'terminate' in line and not 'what()' in line]]
 
             (device, version) = splitext(basename(filename))[0].split('_')
 
@@ -161,7 +165,7 @@ def gather_gpu_results(filename, input_path, datasets, limited_datasets_count, d
             kernels_list = list(kernels)
             kernels_list.sort(key=itemgetter(4,1,2,3))
 
-            datasets = sorted(datasets)
+            # datasets = sorted(datasets)
             datasets_count = len(datasets)
             timings = [[sys.maxsize,sys.maxsize]] * datasets_count
             datesets_iter = iter(datasets)
@@ -197,13 +201,13 @@ def gather_gpu_results(filename, input_path, datasets, limited_datasets_count, d
                         break
     return results_dict
 
-def gather_cpu_results(cpu_results_path, limited_datasets):
+def gather_cpu_results(cpu_results_path, datasets):
     # get CPU results as a reference baseline for speedups
     # double_cpu_results = [432, 80, 9828, 1668, 720, 115, 2180, 409, 1195, 205, 968, 162, 854, 151]
     # single_cpu_results = [341, 74, 16847, 2990, 1257, 214, 2513, 423, 1449, 336, 1058, 170, 1006, 168] # in ms
 
-    single_cpu_results = []
-    double_cpu_results = []
+    single_cpu_results = [sys.maxsize] * len(datasets)
+    double_cpu_results = [sys.maxsize] * len(datasets)
     with open(cpu_results_path) as f:
         lines = f.readlines()
         cpu_delimeter = ',' if ',' in lines[0] else ' ' 
@@ -212,16 +216,23 @@ def gather_cpu_results(cpu_results_path, limited_datasets):
                 and 'double' in line or 'single' in line or 'float' in line and not 'Expected' in line and not 'getLastCudaError()' in line]]
 
         for line in lines:
-            if line[0] in limited_datasets: # Fix this, will not work
-                if line[0] == 'single':
-                    single_cpu_results.append(int(line[2]))
-                elif line[0] == 'double':
-                    double_cpu_results.append(int(line[2]))
-            if line[0] in limited_datasets:
-                if line[1] == 'float':
-                    single_cpu_results.append(int(line[7]))
-                elif line[1] == 'double':
-                    double_cpu_results.append(int(line[7]))
+            dataset = line[0]
+            index = 0
+            for index_dataset in datasets:
+                if dataset == index_dataset:
+                    if line[0] == 'single': # fincalc format
+                        single_cpu_results[index] = int(line[2])
+                    elif line[0] == 'double': # fincalc format
+                        double_cpu_results[index] = int(line[2])
+                    elif line[1] == 'float':
+                        single_cpu_results[index] = int(line[7])
+                    elif line[1] == 'double':
+                        double_cpu_results[index] = int(line[7])
+                    else:
+                        raise Exception("Wrong precision")
+                    break
+                else:
+                    index += 1
     return (single_cpu_results, double_cpu_results)
 class Plotter:
     args = ''
@@ -681,7 +692,7 @@ class Plotter:
                     highest_gflops[dataset][1] = gflops_per_s if gflops_per_s > highest_gflops[dataset][1] else highest_gflops[dataset][1]
                 else:
                     raise Exception("Wrong version")
-            print(print_str)        
+            # print(print_str)
             gflops_table_dict[key] = value
 
         cpu_results = single_cpu_results if precision == precision_dict['float'] else double_cpu_results
@@ -694,6 +705,8 @@ class Plotter:
             gflops_per_s = int(gflops/time_s)
             highest_gflops_device1[dataset][2] = gflops_per_s
             highest_gflops_device2[dataset][2] = gflops_per_s
+
+        print(highest_gflops_device1)
 
         self.make_gflops_figure(highest_gflops_device1, precision, device_dict['v100'])
         self.make_gflops_figure(highest_gflops_device2, precision, device_dict['gtx780'])
@@ -740,7 +753,6 @@ class Plotter:
         output_path_dir = dirname(self.output_path)
         output_path = output_path_dir + '\\figures\\' + 'gflops_' + precision + '_' + device + '.' + self.args.figure_format
         runtime_fig.savefig(output_path, format=self.args.figure_format, dpi=1200, bbox_inches='tight')
-
 
 def main():
     parser = ArgumentParser(description='Plot barcharts for execution results.')
@@ -807,6 +819,8 @@ def main():
 
     datasets_plot3 = datasets.copy()
     datasets_plot3.remove("0_UNIFORM_1000")
+    datasets_plot3.remove("0_UNIFORM_3000")
+    datasets_plot3.remove("0_UNIFORM_5000")
     datasets_plot3.remove("0_UNIFORM_100000")
 
     devices = set()
@@ -824,8 +838,8 @@ def main():
         # for dataset_index in range(datasets_count):
             # timings[dataset_index] = int(np.mean(timings[dataset_index]))
 
-    single_cpu_results_32cores, double_cpu_results_32cores = gather_cpu_results(input_path + cpu_results_filenames[0], limited_datasets)
-    single_cpu_results_52cores, double_cpu_results_52cores = gather_cpu_results(input_path + cpu_results_filenames[1], limited_datasets)
+    single_cpu_results_32cores, double_cpu_results_32cores = gather_cpu_results(input_path + cpu_results_filenames[0], datasets)
+    single_cpu_results_52cores, double_cpu_results_52cores = gather_cpu_results(input_path + cpu_results_filenames[1], datasets)
     # print(single_cpu_results)
     # print(double_cpu_results)
 
@@ -850,9 +864,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
 
 # flops_OptT_single = [41067741184, 6266440000, 1267815845536, 194515257232, 122466550192, 18841305952]
 # flops_OptsTB_single = [41067741184, 6266440000, 1267815845536, 194515257232, 122466550192, 18841305952]
