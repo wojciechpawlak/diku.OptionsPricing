@@ -114,16 +114,19 @@ struct RandValuation
         {
             int currentTimeStep = TermStep;
             int cashflowFrequency = TermStep;
-            while (currentTimeStep <= Height)
+            while (currentTimeStep < Height)
             {
                 CashflowSteps.push_back(currentTimeStep);
                 real coupon = (real)randIntInRange(1, 10);
                 Coupons.push_back(coupon);
-                real repayment = (currentTimeStep == Height) ? hundred : zero;
+                real repayment = zero;
                 Repayments.push_back(repayment);
                 currentTimeStep += cashflowFrequency;
             }
-            Cashflows = Coupons.size();
+
+            Repayments.push_back(hundred);
+            CashflowSteps.push_back(Height);
+            Cashflows = Repayments.size();
         }
     }
 
@@ -281,7 +284,11 @@ public:
             addValuation(val, currentNumOptions);
         }
 
-        writeDataToFile("1_RAND_");
+        string filename = "1_RAND_";
+        if (isHeightNormalDist) filename.append("NORMH_");
+        if (isWidthNormalDist) filename.append("NORMW_");
+
+        writeDataToFile(filename);
     }
 
     void distribute_2()
@@ -418,9 +425,13 @@ public:
             addValuation(val, currentNumOptions);
         }
 
-        string inverseStr = inverse ? "_INV" : "";
+        string filename = "4_SKEWED_";
+        if (isHeightNormalDist) filename.append("NORMH_");
+        if (isWidthNormalDist) filename.append("NORMW_");
+        if (inverse) filename.append("INV_");
+        filename.append(to_string(skewPercent) + "_");
 
-        writeDataToFile("4_SKEWED_" + inverseStr + to_string(skewPercent) + "_");
+        writeDataToFile(filename);
     }
 
     void distribute_5()
