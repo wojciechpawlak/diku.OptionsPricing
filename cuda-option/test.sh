@@ -6,7 +6,6 @@
 
 # program options
 device=$2
-echo "Running on device $device."
 rep=3
 sorts="-s - -s w -s W"
 # sorts="w h"
@@ -37,7 +36,7 @@ exes_names=("float,-" "float,32" "double,-" "double,32")
 exes_to_run=(0 2)
 
 test() {
-    echo "file,precision,registers,version,block,sort,kernel time,total time,memory"
+    echo "file,precision,registers,version,block,sort,kernel time,total time,memory;device=$device"
     for file in ${files[*]}
     do
         for index in ${exes_to_run[*]}
@@ -48,7 +47,7 @@ test() {
 }
 
 test_gtx780() {
-    echo "file,precision,registers,version,block,sort,kernel time,total time,memory"
+    echo "file,precision,registers,version,block,sort,kernel time,total time,memory;device=$device"
     for file in ${files[*]}
     do
         for index in ${exes_to_run[*]}
