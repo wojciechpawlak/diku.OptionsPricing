@@ -5,8 +5,9 @@
 # $ sh test.sh - to run benchmarking with the specified parameters
 
 # program options
+device=$2
+echo "Running on device $device."
 rep=3
-device=0
 sorts="-s - -s w -s W"
 # sorts="w h"
 # block_sizes="32 64 128 256 512 1024"
