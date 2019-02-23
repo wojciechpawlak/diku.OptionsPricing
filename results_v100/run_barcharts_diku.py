@@ -602,17 +602,18 @@ class Plotter:
 
     def make_gflops_table(self, gflops_table_dict, highest_gflops, device_count, column_count):
         count = 0
-        for result in gflops_table_dict.items():
+        for result in sorted(gflops_table_dict.items()):
             kernel = ''
 
             for k,v in kernel_dict.items():
                 if v in result[0]:
                     kernel = str(k)
 
+            version = 'o' if version_dict['cuda-option'] in result[0] else 'f'
             sort = 'ws' if 'Sort' in result[0] else 'ns'
 
             # print_str = result[0] + '\t'
-            print_str = '$ V_{{{0}}}^{{{1}}} $'.format(kernel, sort)
+            print_str = '$ V_{{{0}}}^{{{1}}} $'.format(version + kernel, sort)
 
             value = result[1]
             for dataset_index in range(self.datasets_count):
