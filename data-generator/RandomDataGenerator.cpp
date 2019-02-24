@@ -124,6 +124,8 @@ struct RandValuation
                 currentTimeStep += cashflowFrequency;
             }
 
+            real coupon = (real)randIntInRange(1, 10);
+            Coupons.push_back(coupon);
             Repayments.push_back(hundred);
             CashflowSteps.push_back(Height);
             Cashflows = Repayments.size();
