@@ -124,6 +124,7 @@
     <ClInclude Include="Domain.hpp" />
     <ClInclude Include="getoptpp\getopt_pp.h" />
     <ClInclude Include="getoptpp\getopt_pp_standalone.h" />
+    <ClInclude Include="progress-cpp\ProgressBar.hpp" />
     <ClInclude Include="ValuationConstants.hpp" />
     <ClInclude Include="Valuations.hpp" />
     <ClInclude Include="Real.hpp" />

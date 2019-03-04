@@ -7,6 +7,9 @@
     <Filter Include="getoptpp">
       <UniqueIdentifier>{8af5188f-d054-42b3-8a11-ed9a6b632aba}</UniqueIdentifier>
     </Filter>
+    <Filter Include="progress-cpp">
+      <UniqueIdentifier>{e36b5630-a0e5-4582-8e33-85d1a264f9a9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Args.hpp" />
@@ -24,6 +27,9 @@
     </ClInclude>
     <ClInclude Include="getoptpp\getopt_pp_standalone.h">
       <Filter>getoptpp</Filter>
+    </ClInclude>
+    <ClInclude Include="progress-cpp\ProgressBar.hpp">
+      <Filter>progress-cpp</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
