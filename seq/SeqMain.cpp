@@ -13,7 +13,7 @@ using namespace std;
 using namespace chrono;
 using namespace trinom;
 
-void computeAllOptions(const Args &args)
+void computeAllValuations(const Args &args)
 {
     // Read options from filename
     Valuations valuations(args.valuations);
@@ -41,7 +41,7 @@ void computeAllOptions(const Args &args)
             results.resize(valuations.ValuationCount);
 
             auto time_begin = steady_clock::now();
-            seq::computeOptions(valuations, results);
+            seq::computeValuations(valuations, results);
             auto time_end = steady_clock::now();
             auto runtime = duration_cast<microseconds>(time_end - time_begin).count();
             if (runtime < best)
@@ -64,7 +64,7 @@ void computeAllOptions(const Args &args)
         results.resize(valuations.ValuationCount);
 
         auto time_begin = steady_clock::now();
-        seq::computeOptions(valuations, results);
+        seq::computeValuations(valuations, results);
         auto time_end = steady_clock::now();
         auto runtime = duration_cast<microseconds>(time_end - time_begin).count();
 
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 {
     Args args(argc, argv);
 
-    computeAllOptions(args);
+    computeAllValuations(args);
 
     return 0;
 }

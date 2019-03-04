@@ -17,7 +17,7 @@ TEST_CASE("Book options")
     
     vector<real> seqResults, cudaResults;
     seqResults.resize(valuations.ValuationCount);
-    seq::computeOptions(valuations, seqResults);
+    seq::computeValuations(valuations, seqResults);
 
     SECTION("CUDA option version 1")
     {

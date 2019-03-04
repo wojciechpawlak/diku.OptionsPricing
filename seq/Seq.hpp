@@ -5,7 +5,7 @@
 #include "../common/Domain.hpp"
 
 #define FORWARD_GATHER
-#define PRINT_IDX 1 // Unsorteda
+#define PRINT_IDX 1 // Unsorted
 
 using namespace trinom;
 
@@ -24,7 +24,7 @@ struct jvalue
  *  Sequential version that computes the bond tree until bond maturity
  *  and prices the option on maturity during backward propagation.
  **/
-real computeSingleOption(const ValuationConstants &c, const Valuations &valuations, const int idx)
+real computeValuation(const ValuationConstants &c, const Valuations &valuations, const int idx)
 {
     auto Qs = new real[c.width]();     // Qs[j]: j in -jmax..jmax
     auto QsCopy = new real[c.width](); // QsCopy[j]
@@ -201,9 +201,9 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
         for (auto j = -jhigh; j <= jhigh; ++j)
         {
             const auto jind = j + c.jmax;      // array index for j            
-            auto jvalp1 = jvalues[jind + 1]; // precomputed probabilities and rates
+            auto jvalp1 = jvalues[j == jhigh ? jind : jind + 1]; // precomputed probabilities and rates
             auto jval = jvalues[jind]; // precomputed probabilities and rates
-            auto jvalm1 = jvalues[jind - 1]; // precomputed probabilities and rates
+            auto jvalm1 = jvalues[j == -jhigh ? jind : jind - 1]; // precomputed probabilities and rates
             const auto expu = j == jhigh ? zero : Qs[jind + 1];
             const auto expm = Qs[jind];
             const auto expd = j == -jhigh ? zero : Qs[jind - 1];
@@ -422,13 +422,13 @@ real computeSingleOption(const ValuationConstants &c, const Valuations &valuatio
     return result;
 }
 
-void computeOptions(const Valuations &valuations, std::vector<real> &results)
+void computeValuations(const Valuations &valuations, std::vector<real> &results)
 {
 #pragma omp parallel for
     for (auto i = 0; i < valuations.ValuationCount; ++i)
     {
         ValuationConstants c(valuations, i);
-        auto result = computeSingleOption(c, valuations, i);
+        auto result = computeValuation(c, valuations, i);
         results[i] = result;
     }
 }
