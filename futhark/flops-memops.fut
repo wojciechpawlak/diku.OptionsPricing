@@ -70,14 +70,16 @@ let specialFops (single: bool) (hwd: i64) : i64 =
 
 -- Calculate global device memory accesses
 let mopsPerOption (single: bool) (w: i64) (h: i64) : i64 =
-  let header = 8
+  let header = 16 + 8
   let getYield = 6
   let fwdHelper= 3
   let bwdHelper= 3
   let computeQ = w + 1 + h + 1 +
                  h*(1 + w + w*fwdHelper + w + getYield + 1)
   let computeCall = w + h * (1 + w*bwdHelper) + 1
-  let total = header + computeQ + computeCall
+  let cashflowFreq  = 1/6
+  let cashflowCalc  = h * cashflowFreq * 3
+  let total = header + computeQ + computeCall + cashflowCalc
   in  if single then total else 2*total
 
 
@@ -200,8 +202,11 @@ let main [q] [y]
     let mops_single = map2 (mopsPerOption true ) ws hs |> reduce (+) 0i64
     let mops_double = map2 (mopsPerOption false) ws hs |> reduce (+) 0i64
 
+    let ai = r32 (i32.i64 (fops_double_v100_gpuouter / mops_single))
+    let ai_f64 = r32 (i32.i64 (fops_double_v100_gpuouter / mops_double))
+
 --    in  ( fops_single_v100_gpuouter, fops_double_v100_gpuouter, fops_single_v100_gpuflat, fops_double_v100_gpuflat
 --        , fops_single_gtx780_gpuouter, fops_double_gtx780_gpuouter, fops_single_gtx780_gpuflat, fops_double_gtx780_gpuflat
 --        , mops_single, mops_double
 --       )
-    in  ( fops_single_v100_gpuouter, fops_double_v100_gpuouter )
+    in  ( fops_double_v100_gpuouter, mops_single, mops_double, ai, ai_f64 )
